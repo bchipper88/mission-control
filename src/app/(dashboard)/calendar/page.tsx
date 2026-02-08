@@ -87,7 +87,7 @@ function formatWeekLabel(monday: Date): string {
 // ---------------------------------------------------------------------------
 
 export default function CalendarPage() {
-  const { scheduledTasks, tasks: kanbanTasks, agents } = useStore();
+  const { scheduledTasks, agents } = useStore();
 
   const today = new Date();
   const [weekOffset, setWeekOffset] = useState(0);
@@ -107,74 +107,10 @@ export default function CalendarPage() {
     });
   };
 
-  // Separate always-running vs calendar tasks
+  // Separate always-running vs calendar tasks (cron jobs only)
   const parsed = scheduledTasks.map((st) => ({ ...st, parsed: parseCron(st.cron_expression) }));
   const alwaysRunning = parsed.filter((st) => st.parsed.isAlwaysRunning);
   const calendarTasks = parsed.filter((st) => !st.parsed.isAlwaysRunning);
-
-  // Auto-schedule kanban tasks into actual time slots
-  // Priority determines order, each task gets a time slot
-  const incompleteTasks = kanbanTasks.filter((t) => t.status !== 'done');
-  const priorityOrder = { critical: 0, high: 1, medium: 2, low: 3 };
-  const sortedKanbanTasks = [...incompleteTasks].sort(
-    (a, b) => priorityOrder[a.priority] - priorityOrder[b.priority]
-  );
-  
-  // Working hours: 9 AM to 6 PM (hours 9-17)
-  const WORK_START = 9;
-  const WORK_END = 18;
-  const HOURS_PER_DAY = WORK_END - WORK_START;
-  
-  // Assign kanban tasks to specific day + hour slots
-  // Each task gets ~1-2 hour slot based on priority
-  const kanbanSchedule: Record<string, typeof kanbanTasks[0][]> = {}; // key: "dayIdx-hour"
-  const todayDayIndex = today.getDay() === 0 ? 6 : today.getDay() - 1;
-  
-  let currentDay = todayDayIndex;
-  let currentHour = Math.max(WORK_START, today.getHours() + 1); // Start from next hour or 9 AM
-  
-  // If past work hours, start tomorrow
-  if (currentHour >= WORK_END) {
-    currentDay = (currentDay + 1) % 7;
-    currentHour = WORK_START;
-  }
-  
-  sortedKanbanTasks.forEach((task) => {
-    // Task duration: critical/high = 2 hours, medium = 1.5 hours, low = 1 hour
-    const duration = task.priority === 'critical' || task.priority === 'high' ? 2 : 
-                     task.priority === 'medium' ? 1.5 : 1;
-    
-    // If task has due date and it's this week, schedule on that day
-    if (task.due_date) {
-      const dueDate = new Date(task.due_date);
-      const dueDayIndex = dueDate.getDay() === 0 ? 6 : dueDate.getDay() - 1;
-      // Find first available slot on due date
-      for (let h = WORK_START; h < WORK_END; h++) {
-        const key = `${dueDayIndex}-${h}`;
-        if (!kanbanSchedule[key] || kanbanSchedule[key].length === 0) {
-          kanbanSchedule[key] = [task];
-          return;
-        }
-      }
-    }
-    
-    // Auto-schedule into next available slot
-    const key = `${currentDay}-${currentHour}`;
-    if (!kanbanSchedule[key]) kanbanSchedule[key] = [];
-    kanbanSchedule[key].push(task);
-    
-    // Advance to next slot
-    currentHour += Math.ceil(duration);
-    if (currentHour >= WORK_END) {
-      currentDay = (currentDay + 1) % 7;
-      currentHour = WORK_START;
-    }
-  });
-  
-  // Helper to get scheduled kanban tasks for a day+hour
-  const getKanbanForSlot = (dayIdx: number, hour: number) => {
-    return kanbanSchedule[`${dayIdx}-${hour}`] || [];
-  };
 
   // Determine which calendar tasks fall on which day column
   // Daily tasks appear on every day; weekly tasks appear on their specific day
@@ -351,13 +287,6 @@ export default function CalendarPage() {
                       const dayDate = addDays(monday, dayIdx);
                       const isToday = isSameDay(dayDate, today);
                       const dayTasks = tasksForDay(dayIdx).filter((st) => st.parsed.hour === hour);
-                      const slotKanban = getKanbanForSlot(dayIdx, hour);
-                      const priorityColors: Record<string, string> = {
-                        critical: '#ef4444',
-                        high: '#f59e0b', 
-                        medium: '#3b82f6',
-                        low: '#6b7280',
-                      };
 
                       return (
                         <div
@@ -367,7 +296,6 @@ export default function CalendarPage() {
                           }`}
                           style={{ minWidth: 0 }}
                         >
-                          {/* Cron scheduled tasks */}
                           {dayTasks.map((st) => {
                             const isPaused = pausedIds.has(st.id);
                             return (
@@ -387,20 +315,6 @@ export default function CalendarPage() {
                               </div>
                             );
                           })}
-                          {/* Kanban tasks scheduled in this slot */}
-                          {slotKanban.map((task) => (
-                            <div
-                              key={task.id}
-                              className="rounded px-1 py-0.5 mb-0.5 text-[9px] font-medium truncate"
-                              style={{
-                                backgroundColor: `${priorityColors[task.priority]}15`,
-                                borderLeft: `2px solid ${priorityColors[task.priority]}`,
-                              }}
-                              title={`${task.title} (${task.priority})`}
-                            >
-                              📋 {task.title}
-                            </div>
-                          ))}
                         </div>
                       );
                     })}
