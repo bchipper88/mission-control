@@ -20,11 +20,9 @@ import {
   DollarSign,
   Menu,
   X,
-  Clock,
-  Sparkles,
+  Settings,
   Activity,
   FlaskConical,
-  Wrench,
 } from 'lucide-react';
 
 const navItems = [
@@ -37,9 +35,7 @@ const navItems = [
   { href: '/calendar', label: 'Calendar', icon: Calendar },
   { href: '/projects', label: 'Projects', icon: FolderOpen },
   { href: '/costs', label: 'Costs', icon: DollarSign },
-  { href: '/cron', label: 'Cron Jobs', icon: Clock },
-  { href: '/tools', label: 'Tools', icon: Wrench },
-  { href: '/skills', label: 'Skills', icon: Sparkles },
+  { href: '/system', label: 'System', icon: Settings },
   { href: '/memory', label: 'Memory', icon: Brain },
   { href: '/docs', label: 'Docs', icon: FileText },
   { href: '/people', label: 'People', icon: UserCircle },
