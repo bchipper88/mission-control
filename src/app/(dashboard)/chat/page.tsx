@@ -6,6 +6,7 @@ import { AgentAvatar } from '@/components/ui/AgentAvatar';
 import { Badge } from '@/components/ui/Badge';
 import { Send, Hash, MessageSquare, Plus, Loader2 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
+import { Message } from '@/types';
 
 const CHANNELS = ['general', 'council'];
 
@@ -93,7 +94,7 @@ export default function ChatPage() {
     const trimmed = input.trim();
     if (!trimmed || isLoading) return;
 
-    const userMsg = {
+    const userMsg: Message = {
       id: 'msg-' + Date.now(),
       channel: activeChannel,
       sender_agent_id: 'agent-john',
@@ -123,7 +124,7 @@ export default function ChatPage() {
 
         if (response.ok) {
           const data = await response.json();
-          const nevaMsg = {
+          const nevaMsg: Message = {
             id: 'msg-' + Date.now() + '-neva',
             channel: activeChannel,
             sender_agent_id: 'agent-neva',
@@ -135,7 +136,7 @@ export default function ChatPage() {
           addMessage(nevaMsg);
           saveMessage(nevaMsg);
         } else {
-          const errorMsg = {
+          const errorMsg: Message = {
             id: 'msg-' + Date.now() + '-error',
             channel: activeChannel,
             sender_agent_id: 'agent-neva',
@@ -148,7 +149,7 @@ export default function ChatPage() {
         }
       } catch (error) {
         console.error('Chat error:', error);
-        const errorMsg = {
+        const errorMsg: Message = {
           id: 'msg-' + Date.now() + '-error',
           channel: activeChannel,
           sender_agent_id: 'agent-neva',
