@@ -175,7 +175,7 @@ export default function MissionControlPage() {
 
   return (
     <div className="h-full overflow-auto">
-      <div className="p-6 space-y-6">
+      <div className="p-4 md:p-6 space-y-4 md:space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
@@ -210,7 +210,7 @@ export default function MissionControlPage() {
         </div>
 
         {/* Stats Row */}
-        <div className="grid grid-cols-5 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 md:gap-4">
           <Card>
             <CardContent className="flex items-center gap-3 py-3">
               <div className="w-10 h-10 rounded-lg bg-accent-green/15 flex items-center justify-center">
@@ -273,7 +273,7 @@ export default function MissionControlPage() {
         </div>
 
         {/* Main Grid */}
-        <div className="grid grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
           {/* NEVA Status */}
           <Card className="col-span-1">
             <div className="px-4 py-3 border-b border-border flex items-center justify-between">

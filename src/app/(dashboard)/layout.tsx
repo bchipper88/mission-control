@@ -26,7 +26,7 @@ export default function DashboardLayout({
   return (
     <div className="min-h-screen bg-bg-primary">
       <Sidebar />
-      <main className="ml-56 min-h-screen">
+      <main className="min-h-screen pt-14 md:pt-0 md:ml-56">
         {children}
       </main>
       <CommandPalette />
