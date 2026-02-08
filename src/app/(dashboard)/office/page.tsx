@@ -946,7 +946,7 @@ export default function OfficePage() {
               zIndex: 1,
             }}
           >
-            {/* Alex to Henry */}
+            {/* NEVA to John */}
             <line
               x1={380}
               y1={120}
@@ -956,7 +956,7 @@ export default function OfficePage() {
               strokeWidth={1}
               strokeDasharray="4 4"
             />
-            {/* Alex to Codex */}
+            {/* Connection line */}
             <line
               x1={380}
               y1={120}
