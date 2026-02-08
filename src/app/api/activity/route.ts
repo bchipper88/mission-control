@@ -7,23 +7,26 @@ const GATEWAY_TOKEN = process.env.OPENCLAW_GATEWAY_TOKEN || '';
 export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
-    
-    // Allow customizing the query via URL params
-    const activeMinutes = parseInt(searchParams.get('minutes') || '10080', 10); // Default 7 days
-    const messageLimit = parseInt(searchParams.get('messageLimit') || '50', 10); // More messages per session
-    const maxActivities = parseInt(searchParams.get('limit') || '200', 10); // Return more activities
-    
-    // Fetch sessions from OpenClaw Gateway with more history
-    const response = await fetch(
-      `${GATEWAY_URL}/api/sessions?activeMinutes=${activeMinutes}&messageLimit=${messageLimit}`, 
-      {
-        headers: {
-          'Authorization': `Bearer ${GATEWAY_TOKEN}`,
-          'Content-Type': 'application/json',
+    const activeMinutes = parseInt(searchParams.get('minutes') || '10080', 10);
+    const messageLimit = parseInt(searchParams.get('messageLimit') || '50', 10);
+    const maxActivities = parseInt(searchParams.get('limit') || '200', 10);
+
+    // Use /tools/invoke endpoint to call sessions_list
+    const response = await fetch(`${GATEWAY_URL}/tools/invoke`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${GATEWAY_TOKEN}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        tool: 'sessions_list',
+        args: {
+          activeMinutes,
+          messageLimit,
         },
-        cache: 'no-store',
-      }
-    );
+      }),
+      cache: 'no-store',
+    });
 
     if (!response.ok) {
       throw new Error(`Gateway returned ${response.status}`);
@@ -31,11 +34,20 @@ export async function GET(request: NextRequest) {
 
     const data = await response.json();
     
-    // Transform sessions into activity log entries
+    if (!data.ok || !data.result?.details?.sessions) {
+      return NextResponse.json({
+        activities: [],
+        activitiesByDay: {},
+        totalCount: 0,
+        sessions: [],
+        error: 'No session data returned',
+      });
+    }
+
+    const sessions = data.result.details.sessions;
     const activities: ActivityEntry[] = [];
-    
-    for (const session of data.sessions || []) {
-      // Extract activity from messages
+
+    for (const session of sessions) {
       for (const msg of session.messages || []) {
         if (msg.role === 'assistant' && msg.content) {
           for (const block of msg.content) {
@@ -67,7 +79,6 @@ export async function GET(request: NextRequest) {
         if (msg.role === 'user' && msg.content) {
           for (const block of msg.content) {
             if (block.type === 'text' && block.text) {
-              // Skip heartbeat messages in the log
               const text = block.text;
               if (text.includes('heartbeat') || text.startsWith('On each heartbeat')) {
                 continue;
@@ -75,7 +86,7 @@ export async function GET(request: NextRequest) {
               activities.push({
                 id: `${session.sessionId}-${msg.timestamp}-user`,
                 type: 'user_message',
-                agent: extractDisplayName(session),
+                agent: session.displayName || 'User',
                 action: truncate(text, 300),
                 timestamp: msg.timestamp,
                 sessionKey: session.key,
@@ -86,28 +97,20 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Sort by timestamp descending (newest first)
     activities.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
-
-    // Group activities by day for the UI
     const activitiesByDay = groupByDay(activities.slice(0, maxActivities));
 
     return NextResponse.json({
       activities: activities.slice(0, maxActivities),
       activitiesByDay,
       totalCount: activities.length,
-      sessions: data.sessions?.map((s: Session) => ({
+      sessions: sessions.map((s: Session) => ({
         key: s.key,
         displayName: s.displayName,
         model: s.model,
         totalTokens: s.totalTokens,
         updatedAt: s.updatedAt,
       })),
-      query: {
-        activeMinutes,
-        messageLimit,
-        maxActivities,
-      },
     });
   } catch (error) {
     console.error('Activity fetch error:', error);
@@ -143,11 +146,7 @@ interface Message {
   role: string;
   content?: ContentBlock[];
   timestamp?: number;
-  usage?: {
-    cost?: {
-      total?: number;
-    };
-  };
+  usage?: { cost?: { total?: number } };
 }
 
 interface ContentBlock {
@@ -167,11 +166,6 @@ function extractAgentName(sessionKey: string): string {
   return 'NEVA';
 }
 
-function extractDisplayName(session: Session): string {
-  if (session.displayName) return session.displayName;
-  return 'User';
-}
-
 function truncate(text: string, maxLen: number): string {
   if (text.length <= maxLen) return text;
   return text.slice(0, maxLen) + '...';
@@ -182,25 +176,18 @@ function summarizeArgs(args: Record<string, unknown> | undefined): string {
   const keys = Object.keys(args);
   if (keys.length === 0) return '';
   if (keys.length === 1 && typeof args[keys[0]] === 'string') {
-    const val = args[keys[0]] as string;
-    return truncate(val, 50);
+    return truncate(args[keys[0]] as string, 50);
   }
   return keys.slice(0, 3).join(', ');
 }
 
 function groupByDay(activities: ActivityEntry[]): Record<string, ActivityEntry[]> {
   const groups: Record<string, ActivityEntry[]> = {};
-  
   for (const activity of activities) {
     if (!activity.timestamp) continue;
-    const date = new Date(activity.timestamp);
-    const dayKey = date.toISOString().split('T')[0]; // YYYY-MM-DD
-    
-    if (!groups[dayKey]) {
-      groups[dayKey] = [];
-    }
+    const dayKey = new Date(activity.timestamp).toISOString().split('T')[0];
+    if (!groups[dayKey]) groups[dayKey] = [];
     groups[dayKey].push(activity);
   }
-  
   return groups;
 }
