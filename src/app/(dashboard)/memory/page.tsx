@@ -1,53 +1,119 @@
 'use client';
 
-import { useState } from 'react';
-import { useStore } from '@/store';
+import { useState, useEffect } from 'react';
 import { Card, CardContent } from '@/components/ui/Card';
-import { AgentAvatar } from '@/components/ui/AgentAvatar';
 import { Badge } from '@/components/ui/Badge';
-import { Brain, Plus, Filter, Search, BookOpen, Lightbulb, Star, FileText } from 'lucide-react';
+import { Brain, Filter, Search, BookOpen, Lightbulb, Star, FileText, RefreshCw, FolderOpen } from 'lucide-react';
+
+interface MemoryEntry {
+  id: string;
+  path: string;
+  filename: string;
+  content: string;
+  type: 'core' | 'note' | 'learning' | 'decision' | 'idea' | 'research';
+  created_at: string;
+  modified_at: string;
+  tags: string[];
+  agent_id: string;
+}
 
 const memoryTypeIcons: Record<string, typeof BookOpen> = {
+  core: Brain,
   note: FileText,
-  capture: Star,
   decision: Lightbulb,
   learning: BookOpen,
+  idea: Star,
+  research: Search,
 };
 
 const memoryTypeColors: Record<string, string> = {
+  core: 'purple',
   note: 'blue',
-  capture: 'cyan',
-  decision: 'purple',
+  decision: 'yellow',
   learning: 'green',
+  idea: 'cyan',
+  research: 'default',
 };
 
 export default function MemoryPage() {
-  const { memories, agents } = useStore();
-  const [filterAgent, setFilterAgent] = useState<string>('all');
+  const [memories, setMemories] = useState<MemoryEntry[]>([]);
+  const [loading, setLoading] = useState(true);
   const [filterType, setFilterType] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
+  const [lastRefresh, setLastRefresh] = useState<Date | null>(null);
+  const [workspace, setWorkspace] = useState<string>('');
+
+  const fetchMemories = async () => {
+    setLoading(true);
+    try {
+      const res = await fetch('/api/memory');
+      const data = await res.json();
+      setMemories(data.memories || []);
+      setWorkspace(data.workspace || '');
+      setLastRefresh(new Date());
+    } catch (err) {
+      console.error('Failed to fetch memories:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchMemories();
+  }, []);
 
   const filteredMemories = memories.filter((m) => {
-    if (filterAgent !== 'all' && m.agent_id !== filterAgent) return false;
-    if (filterType !== 'all' && m.memory_type !== filterType) return false;
-    if (searchQuery && !m.content.toLowerCase().includes(searchQuery.toLowerCase())) return false;
+    if (filterType !== 'all' && m.type !== filterType) return false;
+    if (searchQuery && !m.content.toLowerCase().includes(searchQuery.toLowerCase()) && 
+        !m.filename.toLowerCase().includes(searchQuery.toLowerCase())) return false;
     return true;
   });
 
+  const formatTimestamp = (ts: string) => {
+    const date = new Date(ts);
+    const now = new Date();
+    const diff = now.getTime() - date.getTime();
+    
+    if (diff < 3600000) return `${Math.floor(diff / 60000)}m ago`;
+    if (diff < 86400000) return `${Math.floor(diff / 3600000)}h ago`;
+    return date.toLocaleDateString();
+  };
+
+  // Count by type
+  const typeCounts = memories.reduce((acc, m) => {
+    acc[m.type] = (acc[m.type] || 0) + 1;
+    return acc;
+  }, {} as Record<string, number>);
+
   return (
     <div className="p-6 space-y-6">
+      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-xl font-bold flex items-center gap-2">
             <Brain className="w-5 h-5 text-accent-purple" />
             Memory
           </h1>
-          <p className="text-xs text-text-muted mt-1">Agent knowledge and learnings</p>
+          <p className="text-xs text-text-muted mt-1 flex items-center gap-2">
+            <FolderOpen className="w-3 h-3" />
+            {workspace ? `Reading from: ${workspace}` : 'OpenClaw workspace files'}
+          </p>
         </div>
-        <button className="flex items-center gap-2 px-3 py-1.5 bg-accent-purple text-white text-xs font-medium rounded-md hover:bg-accent-purple/90">
-          <Plus className="w-3.5 h-3.5" />
-          Add Memory
-        </button>
+        <div className="flex items-center gap-2">
+          {lastRefresh && (
+            <span className="text-xs text-text-muted">
+              Updated {formatTimestamp(lastRefresh.toISOString())}
+            </span>
+          )}
+          <button 
+            onClick={fetchMemories}
+            disabled={loading}
+            className="flex items-center gap-2 px-3 py-1.5 bg-bg-secondary border border-border text-text-secondary text-xs font-medium rounded-md hover:bg-bg-hover disabled:opacity-50"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+            Refresh
+          </button>
+        </div>
       </div>
 
       {/* Filters */}
@@ -63,39 +129,37 @@ export default function MemoryPage() {
           />
         </div>
         <select
-          value={filterAgent}
-          onChange={(e) => setFilterAgent(e.target.value)}
-          className="px-3 py-2 bg-bg-secondary border border-border rounded-md text-xs text-text-primary outline-none"
-        >
-          <option value="all">All Agents</option>
-          {agents.map((a) => (
-            <option key={a.id} value={a.id}>{a.name}</option>
-          ))}
-        </select>
-        <select
           value={filterType}
           onChange={(e) => setFilterType(e.target.value)}
           className="px-3 py-2 bg-bg-secondary border border-border rounded-md text-xs text-text-primary outline-none"
         >
           <option value="all">All Types</option>
+          <option value="core">Core (MEMORY.md)</option>
           <option value="note">Notes</option>
           <option value="decision">Decisions</option>
           <option value="learning">Learnings</option>
+          <option value="idea">Ideas</option>
+          <option value="research">Research</option>
         </select>
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-3 gap-3">
-        {(['note', 'decision', 'learning'] as const).map((type) => {
+      <div className="grid grid-cols-6 gap-3">
+        {(['core', 'note', 'decision', 'learning', 'idea', 'research'] as const).map((type) => {
           const Icon = memoryTypeIcons[type];
-          const count = memories.filter((m) => m.memory_type === type).length;
+          const count = typeCounts[type] || 0;
           return (
-            <Card key={type}>
-              <CardContent className="flex items-center gap-3">
+            <Card 
+              key={type} 
+              hover
+              className={`cursor-pointer ${filterType === type ? 'ring-1 ring-accent-purple' : ''}`}
+              onClick={() => setFilterType(filterType === type ? 'all' : type)}
+            >
+              <CardContent className="flex items-center gap-2 py-2">
                 <Icon className="w-4 h-4 text-text-muted" />
                 <div>
                   <p className="text-lg font-bold">{count}</p>
-                  <p className="text-[10px] text-text-muted capitalize">{type}s</p>
+                  <p className="text-[10px] text-text-muted capitalize">{type}</p>
                 </div>
               </CardContent>
             </Card>
@@ -105,42 +169,56 @@ export default function MemoryPage() {
 
       {/* Memory Cards */}
       <div className="space-y-3">
-        {filteredMemories.length === 0 ? (
-          <div className="text-center py-12 text-text-muted text-sm">No memories found</div>
+        {loading ? (
+          <div className="flex items-center justify-center py-12">
+            <RefreshCw className="w-5 h-5 animate-spin text-text-muted" />
+          </div>
+        ) : filteredMemories.length === 0 ? (
+          <div className="text-center py-12 text-text-muted text-sm">
+            {memories.length === 0 
+              ? 'No memory files found in workspace. Create MEMORY.md or files in memory/ directory.'
+              : 'No memories match your search'}
+          </div>
         ) : (
           filteredMemories.map((memory) => {
-            const agent = agents.find((a) => a.id === memory.agent_id);
-            const Icon = memoryTypeIcons[memory.memory_type] || FileText;
+            const Icon = memoryTypeIcons[memory.type] || FileText;
+            const colorVariant = memoryTypeColors[memory.type] as 'blue' | 'cyan' | 'purple' | 'green' | 'yellow' | 'default';
 
             return (
               <Card key={memory.id} hover>
-                <CardContent className="flex gap-4">
-                  {agent && <AgentAvatar agent={agent} size="md" />}
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1">
-                      <Icon className="w-3.5 h-3.5 text-text-muted" />
-                      <Badge variant={memoryTypeColors[memory.memory_type] as 'blue' | 'cyan' | 'purple' | 'green'}>
-                        {memory.memory_type}
-                      </Badge>
-                      {agent && (
-                        <span className="text-[10px] text-text-muted">{agent.name}</span>
-                      )}
-                      <span className="text-[10px] text-text-muted ml-auto">
-                        {new Date(memory.created_at).toLocaleDateString()}
-                      </span>
-                    </div>
-                    <p className="text-xs text-text-secondary">{memory.content}</p>
-                    {memory.tags.length > 0 && (
-                      <div className="flex gap-1 mt-2">
-                        {memory.tags.map((tag) => (
-                          <Badge key={tag} variant="default">{tag}</Badge>
-                        ))}
-                      </div>
-                    )}
-                    {memory.source && (
-                      <p className="text-[10px] text-text-muted mt-1">Source: {memory.source}</p>
-                    )}
+                <CardContent className="space-y-2">
+                  {/* Header */}
+                  <div className="flex items-center gap-2">
+                    <Icon className="w-4 h-4 text-text-muted" />
+                    <Badge variant={colorVariant}>
+                      {memory.type}
+                    </Badge>
+                    <span className="text-xs font-mono text-accent-cyan">{memory.filename}</span>
+                    <span className="text-[10px] text-text-muted ml-auto">
+                      Modified {formatTimestamp(memory.modified_at)}
+                    </span>
                   </div>
+
+                  {/* Content preview */}
+                  <div className="bg-bg-secondary rounded-md p-3 border border-border">
+                    <pre className="text-xs text-text-secondary whitespace-pre-wrap font-mono leading-relaxed max-h-40 overflow-y-auto">
+                      {memory.content}
+                    </pre>
+                  </div>
+
+                  {/* Tags */}
+                  {memory.tags.length > 0 && (
+                    <div className="flex gap-1 flex-wrap">
+                      {memory.tags.map((tag) => (
+                        <Badge key={tag} variant="default" size="sm">#{tag}</Badge>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Path */}
+                  <p className="text-[10px] text-text-muted font-mono truncate">
+                    {memory.path}
+                  </p>
                 </CardContent>
               </Card>
             );

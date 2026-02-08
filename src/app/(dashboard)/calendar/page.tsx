@@ -301,24 +301,20 @@ export default function CalendarPage() {
                             return (
                               <div
                                 key={st.id}
-                                className={`flex items-center gap-1.5 rounded-md px-2 py-1.5 mb-0.5 text-xs font-medium truncate ${
+                                className={`flex items-center gap-1 rounded px-1.5 py-1 mb-0.5 text-[10px] font-medium ${
                                   isPaused ? 'opacity-40' : ''
                                 }`}
                                 style={{
                                   backgroundColor: `${st.color || '#3b82f6'}20`,
-                                  borderLeft: `3px solid ${st.color || '#3b82f6'}`,
+                                  borderLeft: `2px solid ${st.color || '#3b82f6'}`,
                                   color: st.color || '#3b82f6',
+                                  width: '100%',
+                                  maxWidth: '100%',
+                                  boxSizing: 'border-box',
+                                  overflow: 'hidden',
                                 }}
                               >
-                                {agent && (
-                                  <span className="shrink-0">
-                                    <AgentAvatar agent={agent} size="sm" showStatus={false} />
-                                  </span>
-                                )}
-                                <span className="truncate text-text-primary">{st.name}</span>
-                                <span className="ml-auto text-[10px] text-text-tertiary whitespace-nowrap">
-                                  {formatHour(hour)}
-                                </span>
+                                <span className="truncate text-text-primary flex-1 min-w-0" style={{ maxWidth: 'calc(100% - 4px)' }}>{st.name}</span>
                               </div>
                             );
                           })}
