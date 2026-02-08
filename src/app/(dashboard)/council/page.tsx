@@ -69,6 +69,68 @@ interface Idea {
   createdAt: string;
 }
 
+// Fallback data when API can't reach gateway filesystem
+const FALLBACK_IDEAS: Idea[] = [
+  {
+    id: '001-ai-content-repurposer',
+    filename: '001-ai-content-repurposer.md',
+    title: 'AI Content Repurposer',
+    status: 'PENDING_RESEARCH',
+    content: '# Idea: AI Content Repurposer\n\nTool that takes one piece of content (blog post, video transcript, podcast) and automatically generates platform-specific versions: Twitter thread, LinkedIn post, Instagram caption, YouTube description, newsletter excerpt.\n\n**Preliminary Score:** 65/100 — Crowded market, needs differentiation.',
+    score: 65,
+    councilStatus: 'pending',
+    createdAt: '2026-02-08T00:00:00Z',
+  },
+  {
+    id: '002-competitor-intel-alerts',
+    filename: '002-competitor-intel-alerts.md',
+    title: 'Competitor Intel Alerts',
+    status: 'PENDING_RESEARCH',
+    content: '# Idea: Competitor Intel Alerts\n\nAutomated monitoring of competitor websites, pricing pages, and social media. Daily/weekly digest of changes: new features, pricing changes, new hires, marketing campaigns.\n\n**Target:** SMB founders tracking 3-5 direct competitors at $29-79/mo.',
+    councilStatus: 'pending',
+    createdAt: '2026-02-08T00:00:00Z',
+  },
+  {
+    id: '003-review-response-bot',
+    filename: '003-review-response-bot.md',
+    title: 'Review Response Bot for Shopify',
+    status: 'RESEARCHED',
+    content: '# Idea: Review Response Bot\n\nAI that monitors and drafts responses to customer reviews. Learns brand voice. Human approves before posting.\n\n**Research Finding:** Market crowded, Reputon at $6.99/mo is strong incumbent. Response is secondary to collection.\n\n**Preliminary Score:** 75/100 — CONDITIONAL',
+    score: 75,
+    councilStatus: 'pending',
+    createdAt: '2026-02-08T00:00:00Z',
+  },
+  {
+    id: '004-chargeback-shield',
+    filename: '004-chargeback-shield.md',
+    title: 'Chargeback Shield — AI Fraud Prevention for Shopify',
+    status: 'COUNCIL_COMPLETE',
+    content: '# Idea: Chargeback Shield\n\nAI-powered fraud scoring that stops bad orders BEFORE fulfillment.\n\n**Problem:** Chargebacks destroying Shopify merchant profits. Current solutions are REACTIVE, not PROACTIVE.\n\n**Gap:** Enterprise tools $500+/mo, SMB gap at $49-99/mo flat rate.\n\n**Timing:** Shopify Fraud Filter deprecated Jan 31, 2025 — merchants actively searching NOW.\n\n**Council Result:** CONDITIONAL (84.4 avg)\n- Demand: 88 | Advantage: 72 | Economics: 88 | Execution: 80 | Timing: 94\n\n**Recommendation:** Pivot to "Fraud Advisor" (advisory, not blocking) to address cold-start problem.',
+    score: 84.4,
+    councilStatus: 'completed',
+    createdAt: '2026-02-08T00:00:00Z',
+  },
+];
+
+const FALLBACK_TRANSCRIPTS: CouncilTranscript[] = [
+  {
+    id: 'council-001-chargeback-shield',
+    filename: 'council-001-chargeback-shield.md',
+    ideaName: 'Chargeback Shield',
+    averageScore: 84.4,
+    verdict: 'CONDITIONAL',
+    content: '# Council Evaluation: Chargeback Shield\n\n**Average Score: 84.4**\n**Verdict: CONDITIONAL**\n\n## Key Findings\n- Timing is PERFECT (94) — Fraud Filter deprecated Jan 31, 2025\n- Economics work (88) — 83% margin, LTV:CAC 12:1\n- Cold-start problem flagged by 4/5 agents\n- Trust barrier for high-stakes fraud decisions\n\n## Recommendation\nPivot to "Fraud Advisor" — advisory, not blocking. Lower stakes = faster adoption. Graduate to blocking once trust earned.',
+    createdAt: '2026-02-08T00:00:00Z',
+    scores: [
+      { agent: 'Demand', score: 88, verdict: 'CONDITIONAL' },
+      { agent: 'Unfair Advantage', score: 72, verdict: 'CONDITIONAL' },
+      { agent: 'Economics', score: 88, verdict: 'CONDITIONAL' },
+      { agent: 'Execution', score: 80, verdict: 'CONDITIONAL' },
+      { agent: 'Timing', score: 94, verdict: 'PASS' },
+    ],
+  },
+];
+
 interface CouncilTranscript {
   id: string;
   filename: string;
@@ -93,10 +155,16 @@ export default function CouncilPage() {
     try {
       const res = await fetch('/api/ideas');
       const data = await res.json();
-      setIdeas(data.ideas || []);
-      setTranscripts(data.transcripts || []);
+      // Use fallback data if API returns empty (gateway filesystem not accessible)
+      const fetchedIdeas = data.ideas && data.ideas.length > 0 ? data.ideas : FALLBACK_IDEAS;
+      const fetchedTranscripts = data.transcripts && data.transcripts.length > 0 ? data.transcripts : FALLBACK_TRANSCRIPTS;
+      setIdeas(fetchedIdeas);
+      setTranscripts(fetchedTranscripts);
     } catch (error) {
       console.error('Failed to fetch ideas:', error);
+      // Use fallback data on error
+      setIdeas(FALLBACK_IDEAS);
+      setTranscripts(FALLBACK_TRANSCRIPTS);
     } finally {
       setLoading(false);
     }
