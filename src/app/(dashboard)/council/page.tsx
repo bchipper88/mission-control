@@ -328,7 +328,8 @@ export default function CouncilPage() {
       {/* New Evaluation Modal */}
       {showNewEval && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50" onClick={() => setShowNewEval(false)}>
-          <Card className="w-full max-w-lg" onClick={e => e.stopPropagation()}>
+          <div className="w-full max-w-lg" onClick={(e) => e.stopPropagation()}>
+          <Card>
             <CardContent className="p-6">
               <h3 className="text-lg font-semibold text-text-primary mb-4">New Council Evaluation</h3>
               <textarea
@@ -354,6 +355,7 @@ export default function CouncilPage() {
               </div>
             </CardContent>
           </Card>
+          </div>
         </div>
       )}
     </div>
