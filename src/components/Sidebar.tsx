@@ -16,6 +16,7 @@ import {
   Building2,
   Search,
   Zap,
+  DollarSign,
 } from 'lucide-react';
 
 const navItems = [
@@ -25,6 +26,7 @@ const navItems = [
   { href: '/council', label: 'Council', icon: Users },
   { href: '/calendar', label: 'Calendar', icon: Calendar },
   { href: '/projects', label: 'Projects', icon: FolderOpen },
+  { href: '/costs', label: 'Costs', icon: DollarSign },
   { href: '/memory', label: 'Memory', icon: Brain },
   { href: '/docs', label: 'Docs', icon: FileText },
   { href: '/people', label: 'People', icon: UserCircle },
