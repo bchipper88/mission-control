@@ -209,14 +209,17 @@ export default function MissionControlPage() {
                   medium: 'blue',
                   low: 'default',
                 } as const;
-                const statusColors = {
+                const statusColors: Record<string, 'default' | 'blue' | 'green' | 'purple' | 'red' | 'cyan' | 'yellow'> = {
+                  planning: 'default',
+                  inbox: 'default',
                   todo: 'default',
                   assigned: 'blue',
                   in_progress: 'green',
+                  testing: 'yellow',
                   review: 'purple',
                   blocked: 'red',
                   done: 'cyan',
-                } as const;
+                };
 
                 return (
                   <div key={task.id} className="flex items-center gap-3 py-1">
