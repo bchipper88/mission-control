@@ -79,15 +79,14 @@ export default function MemoryPage() {
         >
           <option value="all">All Types</option>
           <option value="note">Notes</option>
-          <option value="capture">Captures</option>
           <option value="decision">Decisions</option>
           <option value="learning">Learnings</option>
         </select>
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-4 gap-3">
-        {(['note', 'capture', 'decision', 'learning'] as const).map((type) => {
+      <div className="grid grid-cols-3 gap-3">
+        {(['note', 'decision', 'learning'] as const).map((type) => {
           const Icon = memoryTypeIcons[type];
           const count = memories.filter((m) => m.memory_type === type).length;
           return (

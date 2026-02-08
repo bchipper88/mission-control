@@ -21,7 +21,6 @@ const pages: SearchResult[] = [
   { id: 'p-calendar', title: 'Calendar', subtitle: 'Scheduled tasks', type: 'page', href: '/calendar' },
   { id: 'p-projects', title: 'Projects', subtitle: 'Project management', type: 'page', href: '/projects' },
   { id: 'p-memory', title: 'Memory', subtitle: 'Agent memory', type: 'page', href: '/memory' },
-  { id: 'p-captures', title: 'Captures', subtitle: 'Screenshots & media', type: 'page', href: '/captures' },
   { id: 'p-docs', title: 'Docs', subtitle: 'Documents', type: 'page', href: '/docs' },
   { id: 'p-people', title: 'People', subtitle: 'Directory', type: 'page', href: '/people' },
   { id: 'p-org', title: 'Org', subtitle: 'Organization chart', type: 'page', href: '/org' },
