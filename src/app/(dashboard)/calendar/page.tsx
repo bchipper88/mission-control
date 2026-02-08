@@ -87,7 +87,7 @@ function formatWeekLabel(monday: Date): string {
 // ---------------------------------------------------------------------------
 
 export default function CalendarPage() {
-  const { scheduledTasks, agents } = useStore();
+  const { scheduledTasks, tasks: kanbanTasks, agents } = useStore();
 
   const today = new Date();
   const [weekOffset, setWeekOffset] = useState(0);
@@ -112,6 +112,34 @@ export default function CalendarPage() {
   const alwaysRunning = parsed.filter((st) => st.parsed.isAlwaysRunning);
   const calendarTasks = parsed.filter((st) => !st.parsed.isAlwaysRunning);
 
+  // Auto-schedule kanban tasks: incomplete tasks get distributed across the week
+  // Priority: critical/high = earlier in week, medium = mid-week, low = end of week
+  const incompleteTasks = kanbanTasks.filter((t) => t.status !== 'done');
+  const priorityOrder = { critical: 0, high: 1, medium: 2, low: 3 };
+  const sortedKanbanTasks = [...incompleteTasks].sort(
+    (a, b) => priorityOrder[a.priority] - priorityOrder[b.priority]
+  );
+  
+  // Assign kanban tasks to days (spread them across the week starting today)
+  const kanbanTasksByDay: Record<number, typeof kanbanTasks> = {};
+  const todayDayIndex = today.getDay() === 0 ? 6 : today.getDay() - 1; // Convert to Mon=0
+  
+  sortedKanbanTasks.forEach((task, idx) => {
+    // If task has a due date, use that day; otherwise auto-schedule
+    if (task.due_date) {
+      const dueDate = new Date(task.due_date);
+      const dueDayIndex = dueDate.getDay() === 0 ? 6 : dueDate.getDay() - 1;
+      if (!kanbanTasksByDay[dueDayIndex]) kanbanTasksByDay[dueDayIndex] = [];
+      kanbanTasksByDay[dueDayIndex].push(task);
+    } else {
+      // Auto-schedule: spread tasks starting from today
+      const dayOffset = Math.floor(idx / 3); // ~3 tasks per day
+      const targetDay = (todayDayIndex + dayOffset) % 7;
+      if (!kanbanTasksByDay[targetDay]) kanbanTasksByDay[targetDay] = [];
+      kanbanTasksByDay[targetDay].push(task);
+    }
+  });
+
   // Determine which calendar tasks fall on which day column
   // Daily tasks appear on every day; weekly tasks appear on their specific day
   const tasksForDay = (dayIndex: number) => {
@@ -122,6 +150,9 @@ export default function CalendarPage() {
       return st.parsed.dayOfWeek === jsDow;
     });
   };
+  
+  // Get kanban tasks for a specific day
+  const kanbanForDay = (dayIndex: number) => kanbanTasksByDay[dayIndex] || [];
 
   // Next 3 upcoming tasks for "Next Up" panel
   const getUpcoming = () => {
@@ -273,6 +304,53 @@ export default function CalendarPage() {
                 })}
               </div>
 
+              {/* Kanban Tasks Row (All-day) */}
+              {incompleteTasks.length > 0 && (
+                <div className="grid grid-cols-[64px_repeat(7,1fr)] border-b border-border bg-bg-secondary/50">
+                  <div className="px-2 py-2 text-[10px] text-text-tertiary text-right pr-3">
+                    Tasks
+                  </div>
+                  {DAY_NAMES.map((_, dayIdx) => {
+                    const dayKanban = kanbanForDay(dayIdx);
+                    const dayDate = addDays(monday, dayIdx);
+                    const isToday = isSameDay(dayDate, today);
+                    const priorityColors: Record<string, string> = {
+                      critical: '#ef4444',
+                      high: '#f59e0b',
+                      medium: '#3b82f6',
+                      low: '#6b7280',
+                    };
+                    
+                    return (
+                      <div
+                        key={dayIdx}
+                        className={`border-l border-border p-1 overflow-hidden ${isToday ? 'bg-accent-blue/5' : ''}`}
+                        style={{ minWidth: 0, minHeight: 40 }}
+                      >
+                        {dayKanban.slice(0, 4).map((task) => (
+                          <div
+                            key={task.id}
+                            className="rounded px-1 py-0.5 mb-0.5 text-[8px] font-medium truncate"
+                            style={{
+                              backgroundColor: `${priorityColors[task.priority]}20`,
+                              borderLeft: `2px solid ${priorityColors[task.priority]}`,
+                            }}
+                            title={`${task.title} (${task.priority})`}
+                          >
+                            {task.title}
+                          </div>
+                        ))}
+                        {dayKanban.length > 4 && (
+                          <div className="text-[8px] text-text-muted pl-1">
+                            +{dayKanban.length - 4} more
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
               {/* Time rows */}
               {HOURS.map((hour) => {
                 return (
@@ -291,30 +369,27 @@ export default function CalendarPage() {
                       return (
                         <div
                           key={dayIdx}
-                          className={`relative border-l border-border min-h-[48px] px-1 py-0.5 ${
+                          className={`relative border-l border-border min-h-[48px] p-0.5 overflow-hidden ${
                             isToday ? 'bg-accent-blue/5' : ''
                           }`}
+                          style={{ minWidth: 0 }}
                         >
                           {dayTasks.map((st) => {
-                            const agent = getAgent(st.agent_id);
                             const isPaused = pausedIds.has(st.id);
                             return (
                               <div
                                 key={st.id}
-                                className={`flex items-center gap-1 rounded px-1.5 py-1 mb-0.5 text-[10px] font-medium ${
+                                className={`rounded px-1 py-0.5 mb-0.5 text-[9px] font-medium truncate ${
                                   isPaused ? 'opacity-40' : ''
                                 }`}
                                 style={{
                                   backgroundColor: `${st.color || '#3b82f6'}20`,
                                   borderLeft: `2px solid ${st.color || '#3b82f6'}`,
                                   color: st.color || '#3b82f6',
-                                  width: '100%',
-                                  maxWidth: '100%',
-                                  boxSizing: 'border-box',
-                                  overflow: 'hidden',
                                 }}
+                                title={st.name}
                               >
-                                <span className="truncate text-text-primary flex-1 min-w-0" style={{ maxWidth: 'calc(100% - 4px)' }}>{st.name}</span>
+                                {st.name}
                               </div>
                             );
                           })}
