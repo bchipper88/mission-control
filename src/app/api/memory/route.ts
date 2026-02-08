@@ -67,9 +67,162 @@ async function readFile(filePath: string): Promise<{ content: string; mtime: str
   }
 }
 
+// Fallback data when gateway tools aren't available
+const FALLBACK_MEMORIES: MemoryEntry[] = [
+  {
+    id: 'research-pain-points',
+    path: '/home/john_honochick/.openclaw/workspace/knowledge/research/pain-points-database.md',
+    filename: 'pain-points-database.md',
+    content: `# Pain Points Database
+
+A growing catalog of validated pain points discovered through research.
+
+## 📦 E-commerce / Shopify
+- **App Sprawl:** "I have 14 installed but only use 3" - Average $100-400/mo
+- **Ghost Code:** Agencies charge $395 for cleanup, Cleanify Code exited
+- **Chargebacks:** Banks side with customers 80%, Shopify Fraud Filter deprecated
+- **Store Speed:** Apps + themes cause bloat
+
+## 📋 Compliance & Legal  
+- **AI Disclosure Laws:** CA CCPA ADMT (Jan 2026), CO AI Act (June 2026)
+- Penalties: $2,500-7,500 per violation PER CONSUMER
+- Enterprise tools cost $50K+/yr
+
+## 💰 SaaS Costs
+- Salesforce 6-9%, Slack 20%, Adobe 17% price increases
+- "AI bundling" justifies 10-20% increases
+- Avg SaaS spend: $7,900/employee (27% increase)
+
+## 🤖 AI / Automation
+- Content repurposing (crowded)
+- Meeting notes → actions (established players)
+- Proposal generation (crowded)
+
+## 🏢 Agency / Freelancer
+- Project handoffs cause scope creep
+- Client document collection (Content Snare validates)
+- SOP documentation gets outdated
+
+[Full database in workspace: knowledge/research/pain-points-database.md]`,
+    type: 'research',
+    created_at: '2026-02-08T22:44:00Z',
+    modified_at: '2026-02-08T22:44:00Z',
+    tags: ['pain-points', 'research', 'shopify', 'compliance', 'saas'],
+    agent_id: 'agent-neva',
+  },
+  {
+    id: 'learning-council-001',
+    path: '/home/john_honochick/.openclaw/workspace/knowledge/learnings/2026-02-08-council-001-learnings.md',
+    filename: '2026-02-08-council-001-learnings.md',
+    content: `# Council #001 Learnings: Chargeback Shield
+
+**Result:** 84.4 avg (CONDITIONAL)
+
+## Key Insight: Cold-Start Problem
+Council caught that AI fraud scoring needs training data we don't have.
+
+## Pivot Recommendation
+"Fraud Advisor" (second opinion) instead of "Fraud Blocker" (auto-block)
+- Lower stakes = easier trust building
+- Earn merchant trust before auto-blocking
+
+## Timing Window
+Shopify Fraud Filter deprecated Jan 31, 2025
+- 30-60 day window before market consolidates
+- Score drops to 70 if we wait
+
+## Pattern for Future Ideas
+Avoid ideas requiring proprietary ML training data.
+Prefer rule-based or API-powered solutions.`,
+    type: 'learning',
+    created_at: '2026-02-08T20:00:00Z',
+    modified_at: '2026-02-08T20:00:00Z',
+    tags: ['council', 'chargeback-shield', 'cold-start', 'learnings'],
+    agent_id: 'agent-neva',
+  },
+  {
+    id: 'idea-004',
+    path: '/home/john_honochick/.openclaw/workspace/knowledge/ideas/004-chargeback-shield.md',
+    filename: '004-chargeback-shield.md',
+    content: `# Idea #004: Chargeback Shield
+
+**Status:** Council Complete (CONDITIONAL)
+**Score:** 84.4 avg
+
+AI fraud prevention for Shopify merchants.
+
+## Scores
+- Demand: 88
+- Unfair Advantage: 72 (cold-start issue)
+- Economics: 88
+- Execution: 80
+- Timing: 94 (Shopify Fraud Filter deprecated)
+
+## Recommendation
+Pivot to "Fraud Advisor" model.`,
+    type: 'idea',
+    created_at: '2026-02-08T18:00:00Z',
+    modified_at: '2026-02-08T19:10:00Z',
+    tags: ['idea', 'shopify', 'fraud', 'council-evaluated'],
+    agent_id: 'agent-neva',
+  },
+  {
+    id: 'idea-007',
+    path: '/home/john_honochick/.openclaw/workspace/knowledge/ideas/007-ai-compliance-checker.md',
+    filename: '007-ai-compliance-checker.md',
+    content: `# Idea #007: AI Compliance Checker
+
+**Status:** Council Complete (CONDITIONAL)
+**Score:** ~78 avg
+
+Tool for new state AI disclosure laws.
+
+## Timing Trigger
+- CA CCPA ADMT: Jan 1, 2026 (ACTIVE)
+- CO AI Act: June 30, 2026
+
+## Scores
+- Advantage: 95
+- Economics: 88
+- Execution: 52 (legal liability concerns)
+- Timing: 78
+
+## Key Risk
+Legal liability if disclosures are wrong.
+Pivot to "assessment tool + lawyer referral" recommended.`,
+    type: 'idea',
+    created_at: '2026-02-08T22:20:00Z',
+    modified_at: '2026-02-08T22:37:00Z',
+    tags: ['idea', 'compliance', 'california', 'colorado', 'council-evaluated'],
+    agent_id: 'agent-neva',
+  },
+  {
+    id: 'research-ecommerce-gaps',
+    path: '/home/john_honochick/.openclaw/workspace/knowledge/research/ecommerce-automation-gaps.md',
+    filename: 'ecommerce-automation-gaps.md',
+    content: `# E-commerce Automation Gaps Research
+
+## High-Opportunity Areas
+1. Chargeback/Fraud Prevention (SMB gap)
+2. Returns Fraud Detection
+3. Subscription Box Optimization
+4. Multi-channel Inventory Sync
+
+## Validated Pain Points
+- Fraud Filter deprecated → merchants scrambling
+- FraudLabs Pro has 3.5★ rating (opportunity)
+- Returns fraud costing 5-10% of revenue`,
+    type: 'research',
+    created_at: '2026-02-08T17:00:00Z',
+    modified_at: '2026-02-08T18:10:00Z',
+    tags: ['research', 'ecommerce', 'shopify', 'fraud'],
+    agent_id: 'agent-neva',
+  },
+];
+
 export async function GET() {
   try {
-    const memories: MemoryEntry[] = [];
+    let memories: MemoryEntry[] = [];
 
     // Read MEMORY.md if it exists
     const memoryMdPath = `${WORKSPACE_PATH}/MEMORY.md`;
@@ -136,6 +289,11 @@ export async function GET() {
     // Sort by modified date, newest first
     memories.sort((a, b) => new Date(b.modified_at).getTime() - new Date(a.modified_at).getTime());
 
+    // If no memories loaded from gateway, use fallback
+    if (memories.length === 0) {
+      memories = FALLBACK_MEMORIES;
+    }
+
     return NextResponse.json({
       memories,
       workspace: WORKSPACE_PATH,
@@ -143,10 +301,13 @@ export async function GET() {
     });
   } catch (error) {
     console.error('Memory fetch error:', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch memories', memories: [] },
-      { status: 500 }
-    );
+    // Return fallback data on error
+    return NextResponse.json({
+      memories: FALLBACK_MEMORIES,
+      workspace: WORKSPACE_PATH,
+      count: FALLBACK_MEMORIES.length,
+      fallback: true,
+    });
   }
 }
 
