@@ -73,15 +73,7 @@ export default function ChatPage() {
   const isNevaDM = activeChannel === 'agent-neva';
 
   // Save message to Supabase
-  const saveMessage = async (msg: {
-    id: string;
-    channel: string;
-    sender_agent_id: string;
-    sender_name: string;
-    content: string;
-    message_type: string;
-    created_at: string;
-  }) => {
+  const saveMessage = async (msg: Message) => {
     try {
       await supabase.from('messages').insert(msg);
     } catch (err) {
