@@ -1,8 +1,11 @@
 import { create } from 'zustand';
 import { Agent, Task, Project, Message, ScheduledTask, Memory, Document } from '@/types';
-import { seedAgents, seedTasks, seedProjects, seedMessages, seedScheduledTasks, seedMemories } from '@/data/seed';
 
 interface AppState {
+  // Data loading
+  isLoading: boolean;
+  setLoading: (loading: boolean) => void;
+
   // Agents
   agents: Agent[];
   setAgents: (agents: Agent[]) => void;
@@ -47,8 +50,12 @@ interface AppState {
 }
 
 export const useStore = create<AppState>((set) => ({
-  // Agents - initialized with seed data
-  agents: seedAgents,
+  // Loading state
+  isLoading: true,
+  setLoading: (isLoading) => set({ isLoading }),
+
+  // Agents - start empty, load from Supabase
+  agents: [],
   setAgents: (agents) => set({ agents }),
   updateAgent: (id, updates) =>
     set((state) => ({
@@ -56,7 +63,7 @@ export const useStore = create<AppState>((set) => ({
     })),
 
   // Tasks
-  tasks: seedTasks,
+  tasks: [],
   setTasks: (tasks) => set({ tasks }),
   addTask: (task) => set((state) => ({ tasks: [...state.tasks, task] })),
   updateTask: (id, updates) =>
@@ -69,20 +76,20 @@ export const useStore = create<AppState>((set) => ({
     })),
 
   // Projects
-  projects: seedProjects,
+  projects: [],
   setProjects: (projects) => set({ projects }),
 
   // Messages
-  messages: seedMessages,
+  messages: [],
   setMessages: (messages) => set({ messages }),
   addMessage: (message) => set((state) => ({ messages: [...state.messages, message] })),
 
   // Scheduled Tasks
-  scheduledTasks: seedScheduledTasks,
+  scheduledTasks: [],
   setScheduledTasks: (scheduledTasks) => set({ scheduledTasks }),
 
   // Memories
-  memories: seedMemories,
+  memories: [],
   setMemories: (memories) => set({ memories }),
   addMemory: (memory) => set((state) => ({ memories: [...state.memories, memory] })),
 
