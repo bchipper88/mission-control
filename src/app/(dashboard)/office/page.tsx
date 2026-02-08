@@ -582,7 +582,8 @@ export default function OfficePage() {
           }}
           onClick={() => setSelectedSession(null)}
         >
-          <Card className="w-[450px] max-h-[80vh] overflow-auto" onClick={e => e.stopPropagation()}>
+          <div onClick={(e) => e.stopPropagation()}>
+          <Card className="w-[450px] max-h-[80vh] overflow-auto">
             <CardContent className="space-y-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
@@ -651,6 +652,7 @@ export default function OfficePage() {
               )}
             </CardContent>
           </Card>
+          </div>
         </div>
       )}
     </div>
