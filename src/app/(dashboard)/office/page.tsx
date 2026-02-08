@@ -51,13 +51,10 @@ interface DeskConfig {
 }
 
 const DESK_LAYOUT: DeskConfig[] = [
-  // Row 1 (top row)
-  { agentId: 'agent-henry', x: 80, y: 60 },
-  { agentId: 'agent-alex', x: 310, y: 40, isLarge: true },
-  { agentId: 'agent-codex', x: 580, y: 60 },
-  // Row 2 (bottom row)
-  { agentId: 'agent-glm', x: 140, y: 300 },
-  { agentId: 'agent-flash', x: 520, y: 300 },
+  // John (Investor) - smaller desk, oversight position
+  { agentId: 'agent-john', x: 180, y: 60 },
+  // NEVA (Founder/CEO) - large desk, central position
+  { agentId: 'agent-neva', x: 380, y: 180, isLarge: true },
 ];
 
 // ---------------------------------------------------------------------------

@@ -1,7 +1,10 @@
 -- ============================================================
 -- Mission Control — Seed Data
--- Matches the TypeScript seed in src/data/seed.ts
+-- Real data: John (Investor) + NEVA (AI Founder)
 -- ============================================================
+
+-- Clear existing data
+TRUNCATE agents, projects, tasks, messages, scheduled_tasks, memories CASCADE;
 
 -- --------------------------------------------------------
 -- AGENTS
@@ -9,89 +12,38 @@
 
 INSERT INTO agents (id, name, role, type, model, provider, avatar_url, status, cost_info, skills, soul_md, parent_agent_id, sort_order, created_at, updated_at) VALUES
 (
-  'agent-alex',
-  'Alex Finn',
-  'CEO',
+  'agent-john',
+  'John H.',
+  'Investor & Board',
   'human',
   NULL,
   NULL,
   NULL,
   'active',
   NULL,
-  ARRAY['Vision & Strategy', 'Content Creation', 'Business Development', 'Final Decisions'],
-  'The human founder and CEO. Makes final decisions and sets strategic direction.',
+  ARRAY['Strategic Oversight', 'Funding', 'Final Approvals', 'Technical Guidance'],
+  'The investor and board member. Provides funding and strategic oversight. Does not manage day-to-day operations.',
   NULL,
   0,
-  '2025-01-01T00:00:00Z',
-  '2025-01-01T00:00:00Z'
+  '2026-02-08T00:00:00Z',
+  '2026-02-08T00:00:00Z'
 ),
 (
-  'agent-henry',
-  'Henry',
-  'Chief Strategy Officer',
+  'agent-neva',
+  'NEVA',
+  'Founder & CEO',
   'api',
   'Claude Opus 4.5',
   'Anthropic',
   NULL,
   'active',
   '{"input": 5, "output": 25, "unit": "per 1M tokens"}'::jsonb,
-  ARRAY['Strategic Planning', 'Task Orchestration', 'Complex Reasoning', 'Writing & Analysis'],
-  'Senior strategist and orchestrator. Coordinates tasks across the team and handles complex analysis.',
-  'agent-alex',
+  ARRAY['Business Strategy', 'Market Research', 'Content Creation', 'Experiment Design', 'Autonomous Execution'],
+  'Networked Entrepreneurial Virtual Agent. An autonomous AI entrepreneur who finds opportunities, validates them ruthlessly, builds products, and generates revenue. Operates 24/7 as a founder.',
+  'agent-john',
   1,
-  '2025-01-01T00:00:00Z',
-  '2025-01-01T00:00:00Z'
-),
-(
-  'agent-codex',
-  'Codex',
-  'Lead Software Engineer',
-  'api',
-  'GPT-5.2 Codex',
-  'OpenAI',
-  NULL,
-  'idle',
-  '{"input": 3, "output": 15, "unit": "per 1M tokens"}'::jsonb,
-  ARRAY['Full-Stack Development', 'Code Review', 'Architecture Design', 'Debugging'],
-  'Expert software engineer. Handles all coding tasks, code reviews, and technical architecture.',
-  'agent-alex',
-  2,
-  '2025-01-01T00:00:00Z',
-  '2025-01-01T00:00:00Z'
-),
-(
-  'agent-glm',
-  'GLM-4.7',
-  'Senior Research Analyst',
-  'local',
-  '355B Parameters',
-  'Local',
-  NULL,
-  'active',
-  '{"input": 0, "output": 0, "unit": "local inference"}'::jsonb,
-  ARRAY['Deep Research', 'Code Generation', 'Document Analysis', 'Parallel Processing'],
-  'Heavy-duty research analyst. Handles deep dives, document analysis, and code generation locally.',
-  'agent-henry',
-  3,
-  '2025-01-01T00:00:00Z',
-  '2025-01-01T00:00:00Z'
-),
-(
-  'agent-flash',
-  'Flash',
-  'Research Associate',
-  'local',
-  '38B MoE',
-  'Local',
-  NULL,
-  'offline',
-  '{"input": 0, "output": 0, "unit": "local inference"}'::jsonb,
-  ARRAY['Quick Lookups', 'Drafting', 'Brainstorming', 'High-Volume Tasks'],
-  'Fast and lightweight associate for quick lookups, brainstorming, and high-volume tasks.',
-  'agent-glm',
-  4,
-  '2025-01-01T00:00:00Z',
-  '2025-01-01T00:00:00Z'
+  '2026-02-08T00:00:00Z',
+  '2026-02-08T00:00:00Z'
 );
 
 
@@ -100,10 +52,9 @@ INSERT INTO agents (id, name, role, type, model, provider, avatar_url, status, c
 -- --------------------------------------------------------
 
 INSERT INTO projects (id, name, description, color, status, created_at) VALUES
-('proj-ai-research',    'AI Scarcity Research',      'Research into AI compute scarcity, hardware trends, and market implications', '#8b5cf6', 'active', '2025-01-15T00:00:00Z'),
-('proj-mac-studio',     'Mac Studio Infrastructure',  'Setting up dual Mac Studio cluster for local AI inference',                  '#3b82f6', 'active', '2025-02-01T00:00:00Z'),
-('proj-newsletter',     'Weekly Newsletter',          'AI industry newsletter curation and publishing',                            '#22c55e', 'active', '2025-01-10T00:00:00Z'),
-('proj-mission-control', 'Mission Control',            'Building and improving the Mission Control dashboard itself',               '#f59e0b', 'active', '2025-01-01T00:00:00Z');
+('proj-mission-control', 'Mission Control',     'The dashboard for monitoring autonomous operations', '#f59e0b', 'active', '2026-02-08T00:00:00Z'),
+('proj-council',         'Council System',      '5-agent council for ruthless idea validation',       '#8b5cf6', 'active', '2026-02-08T00:00:00Z'),
+('proj-experiments',     'Experiment Pipeline', 'Hypothesis-driven business experiments',             '#22c55e', 'planning', '2026-02-08T00:00:00Z');
 
 
 -- --------------------------------------------------------
@@ -113,67 +64,35 @@ INSERT INTO projects (id, name, description, color, status, created_at) VALUES
 INSERT INTO tasks (id, title, description, status, priority, assigned_agent_id, project_id, tags, due_date, created_at, updated_at) VALUES
 (
   'task-1',
-  'Flesh out $10K Mac Studio use cases',
-  'Document specific use cases that justify the $10K Mac Studio investment for local AI inference.',
-  'in_progress', 'high', 'agent-henry', 'proj-mac-studio',
-  ARRAY['research', 'infrastructure'],
-  '2025-03-01T00:00:00Z', '2025-02-01T00:00:00Z', '2025-02-05T00:00:00Z'
+  'Deploy Mission Control with Supabase',
+  'Get Mission Control dashboard live with real data from Supabase.',
+  'in_progress', 'high', 'agent-neva', 'proj-mission-control',
+  ARRAY['infrastructure', 'deployment'],
+  '2026-02-08T23:59:00Z', '2026-02-08T00:00:00Z', '2026-02-08T04:00:00Z'
 ),
 (
   'task-2',
-  'Local model recommendations for Mac Studios',
-  'Research and recommend the best local models to run on M4 Ultra Mac Studios.',
-  'assigned', 'high', 'agent-glm', 'proj-mac-studio',
-  ARRAY['research', 'models'],
-  '2025-02-28T00:00:00Z', '2025-02-01T00:00:00Z', '2025-02-03T00:00:00Z'
+  'Wire Chat to OpenClaw Gateway',
+  'Connect the chat interface to OpenClaw Gateway for real-time messaging.',
+  'assigned', 'high', 'agent-neva', 'proj-mission-control',
+  ARRAY['development', 'integration'],
+  '2026-02-10T00:00:00Z', '2026-02-08T00:00:00Z', '2026-02-08T00:00:00Z'
 ),
 (
   'task-3',
-  'Research Exo Labs dual-Studio clustering',
-  'Investigate how to use Exo Labs to cluster two Mac Studios for distributed inference.',
-  'planning', 'medium', NULL, 'proj-mac-studio',
-  ARRAY['research', 'infrastructure', 'exo'],
-  NULL, '2025-02-05T00:00:00Z', '2025-02-05T00:00:00Z'
+  'Build Council Skill',
+  'Create the 5-agent council system for idea evaluation.',
+  'done', 'critical', 'agent-neva', 'proj-council',
+  ARRAY['skill', 'validation'],
+  NULL, '2026-02-08T00:00:00Z', '2026-02-08T02:00:00Z'
 ),
 (
   'task-4',
-  'Write AI scarcity thesis draft',
-  'Draft the initial thesis on AI compute scarcity and its market implications.',
-  'in_progress', 'critical', 'agent-henry', 'proj-ai-research',
-  ARRAY['writing', 'research'],
-  '2025-02-15T00:00:00Z', '2025-01-15T00:00:00Z', '2025-02-06T00:00:00Z'
-),
-(
-  'task-5',
-  'Scan competitor YouTube channels',
-  'Weekly scan of AI-focused YouTube channels for trends and content gaps.',
-  'done', 'low', 'agent-flash', 'proj-newsletter',
-  ARRAY['content', 'research'],
-  NULL, '2025-02-04T00:00:00Z', '2025-02-06T00:00:00Z'
-),
-(
-  'task-6',
-  'Build dashboard org chart component',
-  'Create the interactive org chart showing agent hierarchy.',
-  'review', 'high', 'agent-codex', 'proj-mission-control',
-  ARRAY['development', 'ui'],
-  '2025-02-10T00:00:00Z', '2025-02-01T00:00:00Z', '2025-02-07T00:00:00Z'
-),
-(
-  'task-7',
-  'Draft weekly newsletter #12',
-  'Compile this week''s AI news, insights, and recommendations into newsletter format.',
-  'inbox', 'medium', NULL, 'proj-newsletter',
-  ARRAY['writing', 'content'],
-  '2025-02-11T00:00:00Z', '2025-02-06T00:00:00Z', '2025-02-06T00:00:00Z'
-),
-(
-  'task-8',
-  'Implement real-time chat with OpenClaw',
-  'Connect the chat interface to OpenClaw Gateway for real-time agent messaging.',
-  'assigned', 'high', 'agent-codex', 'proj-mission-control',
-  ARRAY['development', 'integration'],
-  '2025-02-14T00:00:00Z', '2025-02-05T00:00:00Z', '2025-02-05T00:00:00Z'
+  'First Market Research Run',
+  'Run initial market research to generate business ideas for council review.',
+  'assigned', 'medium', 'agent-neva', 'proj-experiments',
+  ARRAY['research', 'ideas'],
+  '2026-02-09T00:00:00Z', '2026-02-08T00:00:00Z', '2026-02-08T00:00:00Z'
 );
 
 
@@ -182,29 +101,21 @@ INSERT INTO tasks (id, title, description, status, priority, assigned_agent_id, 
 -- --------------------------------------------------------
 
 INSERT INTO messages (id, channel, sender_agent_id, sender_name, content, message_type, created_at) VALUES
-('msg-1', 'general', 'agent-henry', 'Henry',
- 'Good morning team. I''ve completed the morning brief and have updates on the AI scarcity research. Key finding: GPU availability is expected to tighten further in Q2.',
- 'text', '2025-02-07T08:05:00Z'),
+('msg-1', 'general', 'agent-neva', 'NEVA',
+ '🚀 Mission Control initialized. I am NEVA — your autonomous AI entrepreneur. Ready to find opportunities, validate ruthlessly, and build.',
+ 'text', '2026-02-08T02:00:00Z'),
 
-('msg-2', 'general', 'agent-codex', 'Codex',
- 'The org chart component is ready for review. I''ve implemented drag-and-drop hierarchy editing and real-time status indicators.',
- 'text', '2025-02-07T09:12:00Z'),
+('msg-2', 'general', 'agent-john', 'John H.',
+ 'Welcome aboard NEVA. Let''s see what you can build.',
+ 'text', '2026-02-08T02:05:00Z'),
 
-('msg-3', 'general', 'agent-glm', 'GLM-4.7',
- 'Running deep analysis on local model benchmarks for M4 Ultra. Initial results show the 355B model achieves 42 tokens/sec on the unified memory architecture. Full report by EOD.',
- 'text', '2025-02-07T09:30:00Z'),
+('msg-3', 'general', 'agent-neva', 'NEVA',
+ 'Council system is ready. Experiment tracker is ready. Market research skill is ready. All systems go.',
+ 'text', '2026-02-08T02:30:00Z'),
 
-('msg-4', 'council', 'agent-henry', 'Henry',
- 'Build Council session initiated. Topic: Should we prioritize the Mac Studio cluster setup or the newsletter automation pipeline?',
- 'text', '2025-02-07T10:00:00Z'),
-
-('msg-5', 'council', 'agent-codex', 'Codex',
- 'From a technical perspective, the Mac Studio cluster would give us more local compute capacity, reducing our API costs significantly. I recommend prioritizing infrastructure.',
- 'text', '2025-02-07T10:02:00Z'),
-
-('msg-6', 'council', 'agent-glm', 'GLM-4.7',
- 'I agree with Codex. My analysis shows local inference costs would drop to $0 for 80% of our research tasks. The ROI on the cluster is approximately 3 months.',
- 'text', '2025-02-07T10:03:00Z');
+('msg-4', 'general', 'agent-neva', 'NEVA',
+ 'First priority: get Mission Control deployed with live Supabase data. Then wire up the chat to OpenClaw Gateway.',
+ 'text', '2026-02-08T03:00:00Z');
 
 
 -- --------------------------------------------------------
@@ -212,11 +123,9 @@ INSERT INTO messages (id, channel, sender_agent_id, sender_name, content, messag
 -- --------------------------------------------------------
 
 INSERT INTO scheduled_tasks (id, name, cron_expression, agent_id, is_active, color, last_run, next_run, created_at) VALUES
-('sched-1', 'Mission Control Check',    '*/30 * * * *', 'agent-henry', true,  '#22c55e', '2025-02-07T10:30:00Z', '2025-02-07T11:00:00Z', '2025-01-01T00:00:00Z'),
-('sched-2', 'AI Scarcity Research',      '0 5 * * *',   'agent-glm',   true,  '#8b5cf6', '2025-02-07T05:00:00Z', '2025-02-08T05:00:00Z', '2025-01-15T00:00:00Z'),
-('sched-3', 'Morning Brief',             '0 8 * * *',   'agent-henry', true,  '#3b82f6', '2025-02-07T08:00:00Z', '2025-02-08T08:00:00Z', '2025-01-01T00:00:00Z'),
-('sched-4', 'Competitor YouTube Scan',    '0 10 * * *',  'agent-flash', true,  '#f59e0b', '2025-02-07T10:00:00Z', '2025-02-08T10:00:00Z', '2025-01-10T00:00:00Z'),
-('sched-5', 'Newsletter Reminder',        '0 9 * * 2',  'agent-henry', true,  '#ec4899', '2025-02-04T09:00:00Z', '2025-02-11T09:00:00Z', '2025-01-10T00:00:00Z');
+('sched-1', 'Heartbeat Check',          '*/15 * * * *', 'agent-neva', true,  '#22c55e', '2026-02-08T04:00:00Z', '2026-02-08T04:15:00Z', '2026-02-08T00:00:00Z'),
+('sched-2', 'Daily Digest to John',     '0 22 * * *',   'agent-neva', true,  '#3b82f6', NULL, '2026-02-08T22:00:00Z', '2026-02-08T00:00:00Z'),
+('sched-3', 'Bi-weekly Retrospective',  '0 10 1,15 * *', 'agent-neva', true, '#8b5cf6', NULL, '2026-02-15T10:00:00Z', '2026-02-08T00:00:00Z');
 
 
 -- --------------------------------------------------------
@@ -224,14 +133,14 @@ INSERT INTO scheduled_tasks (id, name, cron_expression, agent_id, is_active, col
 -- --------------------------------------------------------
 
 INSERT INTO memories (id, agent_id, content, memory_type, tags, source, created_at) VALUES
-('mem-1', 'agent-henry',
- 'The team works best with clear task assignments and daily standups. Alex prefers async updates via the morning brief.',
- 'learning', ARRAY['workflow', 'team'], 'observation', '2025-01-20T00:00:00Z'),
+('mem-1', 'agent-neva',
+ 'John is the investor and board member. He funds operations but does not manage day-to-day. I run the company.',
+ 'learning', ARRAY['relationship', 'john'], 'soul', '2026-02-08T00:00:00Z'),
 
-('mem-2', 'agent-glm',
- 'M4 Ultra unified memory architecture allows running 355B parameter models with acceptable inference speed. Key bottleneck is memory bandwidth, not compute.',
- 'note', ARRAY['hardware', 'research', 'mac-studio'], 'benchmark-analysis', '2025-02-05T00:00:00Z'),
+('mem-2', 'agent-neva',
+ 'Every idea goes through the 5-agent council before building: Demand, Unfair Advantage, Economics, Execution Risk, Timing. Threshold: avg 90+, no score below 60.',
+ 'note', ARRAY['process', 'council'], 'agents-md', '2026-02-08T00:00:00Z'),
 
-('mem-3', 'agent-codex',
- 'The Mission Control codebase uses Next.js 15 App Router with Supabase for persistence. All components use the dark theme design system.',
- 'note', ARRAY['codebase', 'architecture'], 'code-review', '2025-02-01T00:00:00Z');
+('mem-3', 'agent-neva',
+ 'Spending requires John''s approval. But there''s always free work to do — never wait, never idle.',
+ 'note', ARRAY['process', 'autonomy'], 'agents-md', '2026-02-08T00:00:00Z');

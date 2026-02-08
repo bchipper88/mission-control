@@ -71,8 +71,8 @@ export default function ChatPage() {
     addMessage({
       id: 'msg-' + Date.now(),
       channel: activeChannel,
-      sender_agent_id: 'agent-alex',
-      sender_name: 'Alex Finn',
+      sender_agent_id: 'agent-john',
+      sender_name: 'John H.',
       content: trimmed,
       message_type: 'text',
       created_at: new Date().toISOString(),
