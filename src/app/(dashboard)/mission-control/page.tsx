@@ -157,10 +157,12 @@ export default function MissionControlPage() {
   const johnAgent = agents.find((a) => a.name.toLowerCase().includes('john'));
   const nevaAgent = agents.find((a) => a.name.toLowerCase().includes('neva'));
   
-  // Filter tasks by assigned agent
-  const johnTasks = storeTasks.filter((t) => t.assigned_agent_id === johnAgent?.id);
+  // Filter tasks by assigned agent (exclude completed tasks)
+  const johnTasks = storeTasks.filter((t) => 
+    t.assigned_agent_id === johnAgent?.id && t.status !== 'done'
+  );
   const nevaTasks = storeTasks.filter((t) => 
-    t.assigned_agent_id === nevaAgent?.id || !t.assigned_agent_id
+    (t.assigned_agent_id === nevaAgent?.id || !t.assigned_agent_id) && t.status !== 'done'
   );
   
   // Task stats from store
