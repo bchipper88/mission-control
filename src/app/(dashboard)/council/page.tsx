@@ -18,7 +18,9 @@ import {
   Lightbulb,
   ThumbsUp,
   ThumbsDown,
-  Loader2
+  Loader2,
+  BarChart3,
+  Trophy
 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 
@@ -151,7 +153,7 @@ export default function CouncilPage() {
   const [selectedIdea, setSelectedIdea] = useState<Idea | null>(null);
   const [selectedTranscript, setSelectedTranscript] = useState<CouncilTranscript | null>(null);
   const [loading, setLoading] = useState(true);
-  const [view, setView] = useState<'ideas' | 'transcripts'>('ideas');
+  const [view, setView] = useState<'ideas' | 'transcripts' | 'compare'>('ideas');
   const [approving, setApproving] = useState(false);
 
   const handleApproval = async (ideaId: string, approved: boolean) => {
@@ -267,6 +269,17 @@ export default function CouncilPage() {
             Transcripts ({transcripts.length})
           </button>
           <button
+            onClick={() => setView('compare')}
+            className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-colors ${
+              view === 'compare' 
+                ? 'bg-accent-purple text-white' 
+                : 'text-text-secondary hover:text-text-primary hover:bg-bg-hover'
+            }`}
+          >
+            <BarChart3 className="w-4 h-4 inline mr-1" />
+            Compare
+          </button>
+          <button
             onClick={fetchData}
             disabled={loading}
             className="p-2 rounded-lg hover:bg-bg-hover transition-colors"
@@ -338,6 +351,172 @@ export default function CouncilPage() {
       {loading ? (
         <div className="text-center py-12 text-text-muted">
           Loading ideas and transcripts...
+        </div>
+      ) : view === 'compare' ? (
+        /* Comparison View */
+        <div className="space-y-6">
+          {/* Leaderboard */}
+          <Card>
+            <CardContent className="p-4">
+              <h2 className="text-sm font-semibold text-text-primary mb-4 flex items-center gap-2">
+                <Trophy className="w-4 h-4 text-accent-yellow" />
+                Council Leaderboard
+              </h2>
+              <div className="space-y-3">
+                {[...transcripts]
+                  .sort((a, b) => b.averageScore - a.averageScore)
+                  .map((t, idx) => (
+                    <div 
+                      key={t.id}
+                      className="flex items-center gap-4 p-3 bg-bg-secondary rounded-lg"
+                    >
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm ${
+                        idx === 0 ? 'bg-accent-yellow/20 text-accent-yellow' :
+                        idx === 1 ? 'bg-gray-400/20 text-gray-400' :
+                        idx === 2 ? 'bg-amber-700/20 text-amber-700' :
+                        'bg-bg-tertiary text-text-muted'
+                      }`}>
+                        {idx + 1}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-text-primary truncate">
+                          {t.ideaName}
+                        </p>
+                        <Badge 
+                          variant={
+                            t.verdict.toLowerCase() === 'approved' || t.verdict.toLowerCase() === 'pass' ? 'green' :
+                            t.verdict.toLowerCase() === 'rejected' || t.verdict.toLowerCase() === 'fail' ? 'red' :
+                            'yellow'
+                          }
+                          size="sm"
+                        >
+                          {t.verdict}
+                        </Badge>
+                      </div>
+                      <div className="flex gap-1">
+                        {t.scores.map((s, i) => (
+                          <div 
+                            key={i}
+                            className={`w-8 h-8 rounded flex items-center justify-center text-xs font-bold ${
+                              s.score >= 90 ? 'bg-accent-green/20 text-accent-green' :
+                              s.score >= 75 ? 'bg-accent-yellow/20 text-accent-yellow' :
+                              s.score >= 60 ? 'bg-bg-tertiary text-text-secondary' :
+                              'bg-accent-red/20 text-accent-red'
+                            }`}
+                            title={s.agent}
+                          >
+                            {s.score}
+                          </div>
+                        ))}
+                      </div>
+                      <div className={`text-xl font-bold ${getScoreColor(t.averageScore)}`}>
+                        {t.averageScore.toFixed(1)}
+                      </div>
+                    </div>
+                  ))}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Score Comparison Chart */}
+          <Card>
+            <CardContent className="p-4">
+              <h2 className="text-sm font-semibold text-text-primary mb-4 flex items-center gap-2">
+                <BarChart3 className="w-4 h-4 text-accent-blue" />
+                Agent Score Comparison
+              </h2>
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[600px]">
+                  <thead>
+                    <tr className="border-b border-border">
+                      <th className="text-left text-xs font-medium text-text-tertiary px-3 py-2">Idea</th>
+                      {COUNCIL_AGENTS.map(agent => (
+                        <th key={agent.id} className="text-center text-xs font-medium px-3 py-2" style={{ color: agent.color }}>
+                          {agent.name}
+                        </th>
+                      ))}
+                      <th className="text-center text-xs font-medium text-text-tertiary px-3 py-2">Avg</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {transcripts.map((t) => (
+                      <tr key={t.id} className="border-b border-border/50 hover:bg-bg-hover/50">
+                        <td className="px-3 py-2">
+                          <span className="text-sm text-text-primary">{t.ideaName}</span>
+                        </td>
+                        {COUNCIL_AGENTS.map((agent, i) => {
+                          const score = t.scores[i]?.score || 0;
+                          return (
+                            <td key={agent.id} className="px-3 py-2 text-center">
+                              <div className="relative">
+                                <div 
+                                  className="h-6 rounded mx-auto flex items-center justify-center"
+                                  style={{ 
+                                    width: `${Math.max(score, 20)}%`,
+                                    backgroundColor: score >= 90 ? 'rgba(34, 197, 94, 0.2)' :
+                                                    score >= 75 ? 'rgba(234, 179, 8, 0.2)' :
+                                                    score >= 60 ? 'rgba(107, 114, 128, 0.2)' :
+                                                    'rgba(239, 68, 68, 0.2)',
+                                  }}
+                                >
+                                  <span className={`text-xs font-bold ${getScoreColor(score)}`}>
+                                    {score}
+                                  </span>
+                                </div>
+                              </div>
+                            </td>
+                          );
+                        })}
+                        <td className="px-3 py-2 text-center">
+                          <span className={`text-sm font-bold ${getScoreColor(t.averageScore)}`}>
+                            {t.averageScore.toFixed(1)}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              {transcripts.length === 0 && (
+                <div className="text-center py-8 text-text-muted text-sm">
+                  No council evaluations to compare
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Agent Performance Summary */}
+          <Card>
+            <CardContent className="p-4">
+              <h2 className="text-sm font-semibold text-text-primary mb-4">
+                Agent Average Scores (Across All Ideas)
+              </h2>
+              <div className="grid grid-cols-5 gap-4">
+                {COUNCIL_AGENTS.map((agent, i) => {
+                  const avgScore = transcripts.length > 0
+                    ? transcripts.reduce((sum, t) => sum + (t.scores[i]?.score || 0), 0) / transcripts.length
+                    : 0;
+                  return (
+                    <div key={agent.id} className="text-center">
+                      <div 
+                        className="w-12 h-12 rounded-xl flex items-center justify-center mx-auto mb-2"
+                        style={{ backgroundColor: agent.color + '20' }}
+                      >
+                        {(() => {
+                          const Icon = agent.icon;
+                          return <Icon className="w-6 h-6" style={{ color: agent.color }} />;
+                        })()}
+                      </div>
+                      <div className={`text-xl font-bold ${getScoreColor(avgScore)}`}>
+                        {avgScore.toFixed(1)}
+                      </div>
+                      <div className="text-[10px] text-text-muted">{agent.name}</div>
+                    </div>
+                  );
+                })}
+              </div>
+            </CardContent>
+          </Card>
         </div>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
