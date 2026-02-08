@@ -86,12 +86,22 @@ const DEFAULT_SKILLS = [
   },
 ];
 
-async function loadSkillsFromDirectory(): Promise<typeof DEFAULT_SKILLS> {
+interface Skill {
+  id: string;
+  name: string;
+  description: string;
+  category: string;
+  enabled: boolean;
+  triggers?: string[];
+  version?: string;
+}
+
+async function loadSkillsFromDirectory(): Promise<Skill[]> {
   try {
     // Try to read from the skills directory
     const skillsDir = join(process.cwd(), '..', 'skills');
     const files = await readdir(skillsDir);
-    const skills = [];
+    const skills: Skill[] = [];
 
     for (const file of files) {
       if (file.endsWith('.md') || file.endsWith('.yaml') || file.endsWith('.yml')) {
