@@ -76,6 +76,7 @@ export default function MissionControlPage() {
   const [sessions, setSessions] = useState<LiveSession[]>([]);
   const [loading, setLoading] = useState(true);
   const [lastRefresh, setLastRefresh] = useState<Date | null>(null);
+  const [selectedActivity, setSelectedActivity] = useState<ActivityEntry | null>(null);
   const [stats, setStats] = useState({
     activeSessions: 0,
     subagents: 0,
@@ -496,7 +497,8 @@ export default function MissionControlPage() {
                     {activities.map((activity, i) => (
                       <tr
                         key={activity.id}
-                        className={`border-b border-border/50 hover:bg-bg-hover/50 ${
+                        onClick={() => setSelectedActivity(activity)}
+                        className={`border-b border-border/50 hover:bg-bg-hover/50 cursor-pointer ${
                           i === 0 && activity.timestamp && Date.now() - activity.timestamp < 30000
                             ? 'bg-accent-green/5'
                             : ''
@@ -537,6 +539,87 @@ export default function MissionControlPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Activity Detail Modal */}
+      {selectedActivity && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60"
+          onClick={() => setSelectedActivity(null)}
+        >
+          <div
+            className="bg-bg-card border border-border rounded-xl w-[600px] max-h-[80vh] overflow-hidden shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="px-5 py-4 border-b border-border flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                {getActivityIcon(selectedActivity.type)}
+                <div>
+                  <h3 className="text-sm font-semibold text-text-primary">
+                    {selectedActivity.type.replace('_', ' ').replace(/\b\w/g, c => c.toUpperCase())}
+                  </h3>
+                  <p className="text-xs text-text-muted">
+                    {selectedActivity.timestamp 
+                      ? new Date(selectedActivity.timestamp).toLocaleString()
+                      : 'Unknown time'}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setSelectedActivity(null)}
+                className="p-2 hover:bg-bg-hover rounded-lg text-text-muted hover:text-text-primary"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Content */}
+            <div className="px-5 py-4 space-y-4 max-h-[60vh] overflow-y-auto">
+              {/* Meta info */}
+              <div className="grid grid-cols-3 gap-4">
+                <div className="bg-bg-secondary rounded-lg p-3">
+                  <div className="text-[10px] text-text-muted uppercase tracking-wider mb-1">Agent</div>
+                  <div className="text-sm font-medium text-accent-cyan">{selectedActivity.agent}</div>
+                </div>
+                <div className="bg-bg-secondary rounded-lg p-3">
+                  <div className="text-[10px] text-text-muted uppercase tracking-wider mb-1">Model</div>
+                  <div className="text-sm font-medium text-text-primary">
+                    {selectedActivity.model || 'N/A'}
+                  </div>
+                </div>
+                <div className="bg-bg-secondary rounded-lg p-3">
+                  <div className="text-[10px] text-text-muted uppercase tracking-wider mb-1">Cost</div>
+                  <div className="text-sm font-medium text-accent-yellow">
+                    {selectedActivity.cost ? `$${selectedActivity.cost.toFixed(4)}` : '-'}
+                  </div>
+                </div>
+              </div>
+
+              {/* Session Key */}
+              {selectedActivity.sessionKey && (
+                <div>
+                  <div className="text-[10px] text-text-muted uppercase tracking-wider mb-1">Session</div>
+                  <div className="text-xs font-mono text-text-secondary bg-bg-secondary rounded p-2">
+                    {selectedActivity.sessionKey}
+                  </div>
+                </div>
+              )}
+
+              {/* Full Action Content */}
+              <div>
+                <div className="text-[10px] text-text-muted uppercase tracking-wider mb-1">
+                  {selectedActivity.type === 'tool_call' ? 'Tool Call' : 'Content'}
+                </div>
+                <div className="bg-bg-secondary rounded-lg p-4 border border-border">
+                  <pre className="text-xs font-mono text-text-secondary whitespace-pre-wrap break-words leading-relaxed">
+                    {selectedActivity.action}
+                  </pre>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
