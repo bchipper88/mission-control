@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
+import { useStore } from '@/store';
 import { Card, CardContent } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import {
@@ -68,39 +69,36 @@ interface WorkspaceTask {
 // ---------------------------------------------------------------------------
 
 export default function MissionControlPage() {
+  // Get tasks and agents from Supabase store
+  const { tasks: storeTasks, agents } = useStore();
+  
   const [activities, setActivities] = useState<ActivityEntry[]>([]);
   const [sessions, setSessions] = useState<LiveSession[]>([]);
-  const [tasks, setTasks] = useState<WorkspaceTask[]>([]);
   const [loading, setLoading] = useState(true);
   const [lastRefresh, setLastRefresh] = useState<Date | null>(null);
   const [stats, setStats] = useState({
     activeSessions: 0,
     subagents: 0,
     totalCost: 0,
-    tasksInProgress: 0,
-    tasksDone: 0,
   });
 
-  // Fetch all data
+  // Fetch activity and sessions from gateway
   const fetchData = useCallback(async () => {
     try {
-      const [activityRes, sessionsRes, tasksRes] = await Promise.all([
+      const [activityRes, sessionsRes] = await Promise.all([
         fetch('/api/activity?limit=100'),
         fetch('/api/sessions'),
-        fetch('/api/workspace-tasks'),
       ]);
 
-      const [activityData, sessionsData, tasksData] = await Promise.all([
+      const [activityData, sessionsData] = await Promise.all([
         activityRes.json(),
         sessionsRes.json(),
-        tasksRes.json(),
       ]);
 
       setActivities(activityData.activities || []);
       setSessions(sessionsData.sessions || []);
-      setTasks(tasksData.tasks || []);
 
-      // Calculate stats
+      // Calculate session stats
       const activeSessions = (sessionsData.sessions || []).filter(
         (s: LiveSession) => s.status === 'active'
       ).length;
@@ -111,14 +109,8 @@ export default function MissionControlPage() {
         (sum: number, s: LiveSession) => sum + (s.cost || 0),
         0
       );
-      const tasksInProgress = (tasksData.tasks || []).filter(
-        (t: WorkspaceTask) => t.status === 'in_progress'
-      ).length;
-      const tasksDone = (tasksData.tasks || []).filter(
-        (t: WorkspaceTask) => t.status === 'done'
-      ).length;
 
-      setStats({ activeSessions, subagents, totalCost, tasksInProgress, tasksDone });
+      setStats(prev => ({ ...prev, activeSessions, subagents, totalCost }));
       setLastRefresh(new Date());
     } catch (err) {
       console.error('Failed to fetch data:', err);
@@ -160,8 +152,20 @@ export default function MissionControlPage() {
 
   const mainSession = sessions.find((s) => s.type === 'main');
   const subagentSessions = sessions.filter((s) => s.type === 'subagent');
-  const johnTasks = tasks.filter((t) => t.assigned_to === 'john');
-  const nevaTasks = tasks.filter((t) => t.assigned_to === 'neva' || !t.assigned_to);
+  
+  // Find John and NEVA agents by name
+  const johnAgent = agents.find((a) => a.name.toLowerCase().includes('john'));
+  const nevaAgent = agents.find((a) => a.name.toLowerCase().includes('neva'));
+  
+  // Filter tasks by assigned agent
+  const johnTasks = storeTasks.filter((t) => t.assigned_agent_id === johnAgent?.id);
+  const nevaTasks = storeTasks.filter((t) => 
+    t.assigned_agent_id === nevaAgent?.id || !t.assigned_agent_id
+  );
+  
+  // Task stats from store
+  const tasksInProgress = storeTasks.filter((t) => t.status === 'in_progress').length;
+  const tasksDone = storeTasks.filter((t) => t.status === 'done').length;
 
   return (
     <div className="h-full overflow-auto">
@@ -231,7 +235,7 @@ export default function MissionControlPage() {
                 <TrendingUp className="w-5 h-5 text-accent-blue" />
               </div>
               <div>
-                <p className="text-2xl font-bold">{stats.tasksInProgress}</p>
+                <p className="text-2xl font-bold">{tasksInProgress}</p>
                 <p className="text-[10px] text-text-muted">In Progress</p>
               </div>
             </CardContent>
@@ -243,7 +247,7 @@ export default function MissionControlPage() {
                 <CheckCircle2 className="w-5 h-5 text-accent-cyan" />
               </div>
               <div>
-                <p className="text-2xl font-bold">{stats.tasksDone}</p>
+                <p className="text-2xl font-bold">{tasksDone}</p>
                 <p className="text-[10px] text-text-muted">Completed</p>
               </div>
             </CardContent>
