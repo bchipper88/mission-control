@@ -72,6 +72,8 @@ export async function GET(request: NextRequest) {
                 timestamp: msg.timestamp,
                 sessionKey: session.key,
                 model: session.model,
+                toolName: block.name,
+                toolArgs: block.arguments,
               });
             }
           }
@@ -130,6 +132,8 @@ interface ActivityEntry {
   sessionKey?: string;
   model?: string;
   cost?: number;
+  toolName?: string;
+  toolArgs?: Record<string, unknown>;
 }
 
 interface Session {

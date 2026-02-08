@@ -37,6 +37,8 @@ interface ActivityEntry {
   sessionKey?: string;
   model?: string;
   cost?: number;
+  toolName?: string;
+  toolArgs?: Record<string, unknown>;
 }
 
 interface LiveSession {
@@ -606,16 +608,42 @@ export default function MissionControlPage() {
               )}
 
               {/* Full Action Content */}
-              <div>
-                <div className="text-[10px] text-text-muted uppercase tracking-wider mb-1">
-                  {selectedActivity.type === 'tool_call' ? 'Tool Call' : 'Content'}
+              {selectedActivity.type === 'tool_call' && selectedActivity.toolName ? (
+                <div className="space-y-3">
+                  <div>
+                    <div className="text-[10px] text-text-muted uppercase tracking-wider mb-1">Tool</div>
+                    <div className="bg-bg-secondary rounded-lg px-3 py-2 border border-border">
+                      <span className="text-sm font-mono font-semibold text-accent-purple">
+                        {selectedActivity.toolName}
+                      </span>
+                    </div>
+                  </div>
+                  {selectedActivity.toolArgs && Object.keys(selectedActivity.toolArgs).length > 0 && (
+                    <div>
+                      <div className="text-[10px] text-text-muted uppercase tracking-wider mb-1">Arguments</div>
+                      <div className="bg-bg-secondary rounded-lg p-4 border border-border space-y-3">
+                        {Object.entries(selectedActivity.toolArgs).map(([key, value]) => (
+                          <div key={key}>
+                            <div className="text-[10px] text-accent-cyan font-mono mb-1">{key}</div>
+                            <pre className="text-xs font-mono text-text-secondary whitespace-pre-wrap break-words bg-bg-primary rounded p-2 border border-border/50 max-h-48 overflow-y-auto">
+                              {typeof value === 'string' ? value : JSON.stringify(value, null, 2)}
+                            </pre>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
-                <div className="bg-bg-secondary rounded-lg p-4 border border-border">
-                  <pre className="text-xs font-mono text-text-secondary whitespace-pre-wrap break-words leading-relaxed">
-                    {selectedActivity.action}
-                  </pre>
+              ) : (
+                <div>
+                  <div className="text-[10px] text-text-muted uppercase tracking-wider mb-1">Content</div>
+                  <div className="bg-bg-secondary rounded-lg p-4 border border-border">
+                    <pre className="text-xs font-mono text-text-secondary whitespace-pre-wrap break-words leading-relaxed">
+                      {selectedActivity.action}
+                    </pre>
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
           </div>
         </div>
