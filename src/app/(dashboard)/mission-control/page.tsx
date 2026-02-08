@@ -304,51 +304,83 @@ export default function MissionControlPage() {
         </Card>
       </div>
 
-      {/* Real-time Activity Feed */}
+      {/* Activity Feed - Live + Historical */}
       <Card>
         <div className="px-4 py-3 border-b border-border flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Activity className="w-4 h-4 text-accent-green" />
-            <h2 className="text-sm font-semibold">Live Activity Feed</h2>
-            <span className="relative flex h-2 w-2 ml-1">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-accent-green opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-accent-green"></span>
-            </span>
+            <h2 className="text-sm font-semibold">Activity Log</h2>
+            {activities.some(a => a.timestamp && Date.now() - a.timestamp < 120000) && (
+              <span className="relative flex h-2 w-2 ml-1">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-accent-green opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-accent-green"></span>
+              </span>
+            )}
           </div>
-          <Badge variant="purple">{activities.length} events</Badge>
+          <div className="flex items-center gap-2">
+            <Badge variant="purple">{activities.length} events</Badge>
+            <button 
+              onClick={fetchActivity}
+              className="p-1 rounded hover:bg-bg-hover"
+              disabled={loading}
+            >
+              <RefreshCw className={`w-3.5 h-3.5 text-text-muted ${loading ? 'animate-spin' : ''}`} />
+            </button>
+          </div>
         </div>
-        <CardContent className="space-y-2 max-h-80 overflow-y-auto">
+        <CardContent className="space-y-1 max-h-[500px] overflow-y-auto">
           {loading ? (
             <div className="flex items-center justify-center py-8">
               <RefreshCw className="w-5 h-5 animate-spin text-text-muted" />
             </div>
           ) : activities.length === 0 ? (
-            <p className="text-xs text-text-muted py-4 text-center">No recent activity</p>
+            <p className="text-xs text-text-muted py-4 text-center">No activity recorded yet</p>
           ) : (
-            activities.slice(0, 20).map((activity) => (
-              <div key={activity.id} className="flex gap-3 py-2 border-b border-border/50 last:border-0">
-                {getActivityIcon(activity.type)}
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-medium text-accent-cyan">{activity.agent}</span>
-                    {activity.model && (
-                      <Badge variant="default" size="sm">{activity.model}</Badge>
+            (() => {
+              // Group activities by day
+              let lastDay = '';
+              return activities.map((activity) => {
+                const activityDay = activity.timestamp 
+                  ? new Date(activity.timestamp).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
+                  : 'Unknown';
+                const showDayHeader = activityDay !== lastDay;
+                lastDay = activityDay;
+                
+                return (
+                  <div key={activity.id}>
+                    {showDayHeader && (
+                      <div className="sticky top-0 bg-bg-card py-1.5 px-2 -mx-2 border-b border-border mb-2 mt-3 first:mt-0">
+                        <span className="text-[10px] font-semibold text-text-muted uppercase tracking-wider">
+                          {activityDay}
+                        </span>
+                      </div>
                     )}
-                    <span className="text-[10px] text-text-muted ml-auto">
-                      {formatTimestamp(activity.timestamp)}
-                    </span>
+                    <div className="flex gap-3 py-2 border-b border-border/30 last:border-0 hover:bg-bg-hover/50 rounded px-1 -mx-1">
+                      {getActivityIcon(activity.type)}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-medium text-accent-cyan">{activity.agent}</span>
+                          {activity.model && (
+                            <Badge variant="default" size="sm">{activity.model.split('/').pop()}</Badge>
+                          )}
+                          <span className="text-[10px] text-text-muted ml-auto">
+                            {formatTimestamp(activity.timestamp)}
+                          </span>
+                        </div>
+                        <p className="text-xs text-text-secondary mt-0.5 line-clamp-2 font-mono">
+                          {activity.action}
+                        </p>
+                        {activity.cost && activity.cost > 0 && (
+                          <span className="text-[10px] text-accent-yellow">
+                            ${activity.cost.toFixed(4)}
+                          </span>
+                        )}
+                      </div>
+                    </div>
                   </div>
-                  <p className="text-xs text-text-secondary mt-0.5 line-clamp-2 font-mono">
-                    {activity.action}
-                  </p>
-                  {activity.cost && (
-                    <span className="text-[10px] text-accent-yellow">
-                      ${activity.cost.toFixed(4)}
-                    </span>
-                  )}
-                </div>
-              </div>
-            ))
+                );
+              });
+            })()
           )}
         </CardContent>
       </Card>
