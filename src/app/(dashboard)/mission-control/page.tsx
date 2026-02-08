@@ -18,6 +18,7 @@ import {
   FileText,
   FlaskConical,
   Users,
+  User,
   DollarSign,
   TrendingUp,
 } from 'lucide-react';
@@ -358,22 +359,22 @@ export default function MissionControlPage() {
             </CardContent>
           </Card>
 
-          {/* Tasks */}
+          {/* NEVA Tasks */}
           <Card className="col-span-1">
             <div className="px-4 py-3 border-b border-border flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <FileText className="w-4 h-4 text-accent-blue" />
-                <h2 className="text-sm font-semibold">Tasks</h2>
+                <Rocket className="w-4 h-4 text-accent-purple" />
+                <h2 className="text-sm font-semibold">NEVA Tasks</h2>
               </div>
-              <Badge variant="blue">{tasks.length} total</Badge>
+              <Badge variant="purple">{nevaTasks.length}</Badge>
             </div>
             <CardContent className="space-y-2 max-h-64 overflow-y-auto">
-              {tasks.length === 0 ? (
+              {nevaTasks.length === 0 ? (
                 <div className="text-center py-4 text-text-muted text-sm">
-                  No tasks found
+                  No tasks assigned
                 </div>
               ) : (
-                tasks.slice(0, 10).map((task) => {
+                nevaTasks.slice(0, 8).map((task) => {
                   const priorityColors: Record<string, 'red' | 'yellow' | 'blue' | 'default'> = {
                     critical: 'red',
                     high: 'yellow',
@@ -401,6 +402,52 @@ export default function MissionControlPage() {
             </CardContent>
           </Card>
         </div>
+
+        {/* John Tasks - Full Width */}
+        <Card>
+          <div className="px-4 py-3 border-b border-border flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <User className="w-4 h-4 text-accent-blue" />
+              <h2 className="text-sm font-semibold">John's Tasks</h2>
+            </div>
+            <Badge variant="blue">{johnTasks.length}</Badge>
+          </div>
+          <CardContent className="space-y-2 max-h-48 overflow-y-auto">
+            {johnTasks.length === 0 ? (
+              <div className="text-center py-4 text-text-muted text-sm">
+                No tasks for John — assign tasks by adding "John" to the task title or assigned_to field
+              </div>
+            ) : (
+              johnTasks.map((task) => {
+                const priorityColors: Record<string, 'red' | 'yellow' | 'blue' | 'default'> = {
+                  critical: 'red',
+                  high: 'yellow',
+                  medium: 'blue',
+                  low: 'default',
+                };
+                const statusIcons: Record<string, React.ReactNode> = {
+                  done: <CheckCircle2 className="w-3.5 h-3.5 text-accent-green" />,
+                  in_progress: <Activity className="w-3.5 h-3.5 text-accent-blue" />,
+                  blocked: <AlertCircle className="w-3.5 h-3.5 text-accent-red" />,
+                  todo: <Clock className="w-3.5 h-3.5 text-text-muted" />,
+                };
+
+                return (
+                  <div key={task.id} className="flex items-center gap-2 py-1.5 px-2 rounded bg-bg-secondary">
+                    {statusIcons[task.status] || statusIcons.todo}
+                    <span className="text-xs flex-1 truncate">{task.title}</span>
+                    <Badge variant={priorityColors[task.priority] || 'default'} size="sm">
+                      {task.priority}
+                    </Badge>
+                    <Badge variant={task.status === 'done' ? 'green' : task.status === 'in_progress' ? 'blue' : 'default'} size="sm">
+                      {task.status.replace('_', ' ')}
+                    </Badge>
+                  </div>
+                );
+              })
+            )}
+          </CardContent>
+        </Card>
 
         {/* Activity Log - Full Width */}
         <Card>
