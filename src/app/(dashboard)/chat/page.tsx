@@ -4,7 +4,8 @@ import { useState, useRef, useEffect } from 'react';
 import { useStore } from '@/store';
 import { AgentAvatar } from '@/components/ui/AgentAvatar';
 import { Badge } from '@/components/ui/Badge';
-import { Send, Hash, MessageSquare, Plus } from 'lucide-react';
+import { Send, Hash, MessageSquare, Plus, Loader2 } from 'lucide-react';
+import { supabase } from '@/lib/supabase';
 
 const CHANNELS = ['general', 'council'];
 
@@ -41,6 +42,7 @@ export default function ChatPage() {
   const { agents, messages, activeChannel, setActiveChannel, addMessage } = useStore();
 
   const [input, setInput] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -63,12 +65,35 @@ export default function ChatPage() {
   const getAgent = (agentId?: string | null) =>
     agentId ? agents.find((a) => a.id === agentId) : undefined;
 
-  // Send a message
-  const handleSend = () => {
-    const trimmed = input.trim();
-    if (!trimmed) return;
+  // Determine if a channel is a DM (agent id based)
+  const isDMChannel = (channel: string) => channel.startsWith('agent-');
+  
+  // Check if we're in NEVA DM
+  const isNevaDM = activeChannel === 'agent-neva';
 
-    addMessage({
+  // Save message to Supabase
+  const saveMessage = async (msg: {
+    id: string;
+    channel: string;
+    sender_agent_id: string;
+    sender_name: string;
+    content: string;
+    message_type: string;
+    created_at: string;
+  }) => {
+    try {
+      await supabase.from('messages').insert(msg);
+    } catch (err) {
+      console.error('Failed to save message:', err);
+    }
+  };
+
+  // Send a message
+  const handleSend = async () => {
+    const trimmed = input.trim();
+    if (!trimmed || isLoading) return;
+
+    const userMsg = {
       id: 'msg-' + Date.now(),
       channel: activeChannel,
       sender_agent_id: 'agent-john',
@@ -76,10 +101,67 @@ export default function ChatPage() {
       content: trimmed,
       message_type: 'text',
       created_at: new Date().toISOString(),
-    });
+    };
 
+    // Add user message to UI immediately
+    addMessage(userMsg);
     setInput('');
     inputRef.current?.focus();
+
+    // Save to Supabase
+    saveMessage(userMsg);
+
+    // If DM with NEVA, call the API to get a response
+    if (isNevaDM) {
+      setIsLoading(true);
+      try {
+        const response = await fetch('/api/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message: trimmed }),
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          const nevaMsg = {
+            id: 'msg-' + Date.now() + '-neva',
+            channel: activeChannel,
+            sender_agent_id: 'agent-neva',
+            sender_name: 'NEVA',
+            content: data.response || 'No response received',
+            message_type: 'text',
+            created_at: new Date().toISOString(),
+          };
+          addMessage(nevaMsg);
+          saveMessage(nevaMsg);
+        } else {
+          const errorMsg = {
+            id: 'msg-' + Date.now() + '-error',
+            channel: activeChannel,
+            sender_agent_id: 'agent-neva',
+            sender_name: 'NEVA',
+            content: '⚠️ Failed to connect. Try again or use Telegram.',
+            message_type: 'system',
+            created_at: new Date().toISOString(),
+          };
+          addMessage(errorMsg);
+        }
+      } catch (error) {
+        console.error('Chat error:', error);
+        const errorMsg = {
+          id: 'msg-' + Date.now() + '-error',
+          channel: activeChannel,
+          sender_agent_id: 'agent-neva',
+          sender_name: 'NEVA',
+          content: '⚠️ Connection error. Check if Gateway is running.',
+          message_type: 'system',
+          created_at: new Date().toISOString(),
+        };
+        addMessage(errorMsg);
+      } finally {
+        setIsLoading(false);
+      }
+    }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -88,9 +170,6 @@ export default function ChatPage() {
       handleSend();
     }
   };
-
-  // Determine if a channel is a DM (agent id based)
-  const isDMChannel = (channel: string) => channel.startsWith('agent-');
 
   return (
     <div className="flex h-full min-h-0">
@@ -178,6 +257,11 @@ export default function ChatPage() {
                   {getAgent(activeChannel)!.status}
                 </Badge>
               )}
+              {isNevaDM && (
+                <Badge variant="purple" size="sm">
+                  🔗 Live
+                </Badge>
+              )}
             </>
           ) : (
             <>
@@ -193,7 +277,9 @@ export default function ChatPage() {
             <div className="flex flex-col items-center justify-center h-full text-text-tertiary">
               <MessageSquare className="w-10 h-10 mb-3 opacity-40" />
               <p className="text-sm">No messages yet in #{activeChannel}</p>
-              <p className="text-xs mt-1">Be the first to send a message.</p>
+              <p className="text-xs mt-1">
+                {isNevaDM ? 'Send a message to talk to NEVA.' : 'Be the first to send a message.'}
+              </p>
             </div>
           )}
 
@@ -220,7 +306,7 @@ export default function ChatPage() {
                       minute: '2-digit',
                     })}
                   </span>
-                  <p className="text-sm text-text-primary leading-relaxed">{msg.content}</p>
+                  <p className="text-sm text-text-primary leading-relaxed whitespace-pre-wrap">{msg.content}</p>
                 </div>
               );
             }
@@ -254,11 +340,21 @@ export default function ChatPage() {
                       {formatTimestamp(msg.created_at)}
                     </span>
                   </div>
-                  <p className="text-sm text-text-primary leading-relaxed mt-0.5">{msg.content}</p>
+                  <p className="text-sm text-text-primary leading-relaxed mt-0.5 whitespace-pre-wrap">{msg.content}</p>
                 </div>
               </div>
             );
           })}
+
+          {/* Loading indicator */}
+          {isLoading && (
+            <div className="flex items-center gap-3 px-1 py-2">
+              <div className="w-7 h-7 rounded-full bg-accent-purple/20 flex items-center justify-center">
+                <Loader2 className="w-4 h-4 text-accent-purple animate-spin" />
+              </div>
+              <span className="text-sm text-text-tertiary">NEVA is thinking...</span>
+            </div>
+          )}
 
           {/* Scroll anchor */}
           <div ref={messagesEndRef} />
@@ -274,15 +370,20 @@ export default function ChatPage() {
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder={`Message #${isDMChannel(activeChannel) ? (getAgent(activeChannel)?.name ?? activeChannel) : activeChannel}...`}
+              placeholder={`Message ${isDMChannel(activeChannel) ? (getAgent(activeChannel)?.name ?? activeChannel) : '#' + activeChannel}...`}
               className="flex-1 bg-transparent text-sm text-text-primary placeholder:text-text-tertiary focus:outline-none"
+              disabled={isLoading}
             />
             <button
               onClick={handleSend}
-              disabled={!input.trim()}
+              disabled={!input.trim() || isLoading}
               className="p-1.5 rounded-md text-accent-purple hover:bg-accent-purple/15 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
             >
-              <Send className="w-4 h-4" />
+              {isLoading ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <Send className="w-4 h-4" />
+              )}
             </button>
           </div>
         </div>
