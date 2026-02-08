@@ -1,9 +1,9 @@
 import { NextResponse } from 'next/server';
-import * as fs from 'fs/promises';
-import * as path from 'path';
 
-// OpenClaw workspace path - this is where MEMORY.md and memory/*.md live
-const WORKSPACE_PATH = process.env.OPENCLAW_WORKSPACE_PATH || '/home/john_honochick/.openclaw/workspace';
+// OpenClaw Gateway connection
+const GATEWAY_URL = process.env.OPENCLAW_GATEWAY_URL || 'https://entrepreneurbot.tailf3b898.ts.net';
+const GATEWAY_TOKEN = process.env.OPENCLAW_GATEWAY_TOKEN || '';
+const WORKSPACE_PATH = '/home/john_honochick/.openclaw/workspace';
 
 interface MemoryEntry {
   id: string;
@@ -17,88 +17,120 @@ interface MemoryEntry {
   agent_id: string;
 }
 
+async function invokeGatewayTool(tool: string, args: Record<string, unknown>) {
+  const response = await fetch(`${GATEWAY_URL}/tools/invoke`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${GATEWAY_TOKEN}`,
+    },
+    body: JSON.stringify({ tool, args }),
+  });
+  
+  if (!response.ok) {
+    throw new Error(`Gateway error: ${response.status}`);
+  }
+  
+  return response.json();
+}
+
+async function listDirectory(dirPath: string): Promise<string[]> {
+  try {
+    const result = await invokeGatewayTool('exec', {
+      command: `ls -1 "${dirPath}" 2>/dev/null || echo ""`,
+    });
+    const output = result.stdout || result.output || '';
+    return output.split('\n').filter((f: string) => f.endsWith('.md'));
+  } catch {
+    return [];
+  }
+}
+
+async function readFile(filePath: string): Promise<{ content: string; mtime: string } | null> {
+  try {
+    const result = await invokeGatewayTool('Read', {
+      path: filePath,
+    });
+    // Read tool returns content directly or in a content field
+    const content = typeof result === 'string' ? result : (result.content || result.text || '');
+    
+    // Get file stat for modified time
+    const statResult = await invokeGatewayTool('exec', {
+      command: `stat -c '%Y' "${filePath}" 2>/dev/null || echo ""`,
+    });
+    const timestamp = statResult.stdout || statResult.output || '';
+    const mtime = timestamp.trim() ? new Date(parseInt(timestamp.trim()) * 1000).toISOString() : new Date().toISOString();
+    
+    return { content: content.slice(0, 2000), mtime };
+  } catch {
+    return null;
+  }
+}
+
 export async function GET() {
   try {
     const memories: MemoryEntry[] = [];
 
     // Read MEMORY.md if it exists
-    const memoryMdPath = path.join(WORKSPACE_PATH, 'MEMORY.md');
-    try {
-      const stat = await fs.stat(memoryMdPath);
-      const content = await fs.readFile(memoryMdPath, 'utf-8');
+    const memoryMdPath = `${WORKSPACE_PATH}/MEMORY.md`;
+    const memoryMd = await readFile(memoryMdPath);
+    if (memoryMd) {
       memories.push({
         id: 'memory-core',
         path: memoryMdPath,
         filename: 'MEMORY.md',
-        content: content.slice(0, 2000), // Truncate for display
+        content: memoryMd.content,
         type: 'core',
-        created_at: stat.birthtime.toISOString(),
-        modified_at: stat.mtime.toISOString(),
-        tags: extractTags(content),
+        created_at: memoryMd.mtime,
+        modified_at: memoryMd.mtime,
+        tags: extractTags(memoryMd.content),
         agent_id: 'agent-neva',
       });
-    } catch (e) {
-      // MEMORY.md doesn't exist yet
     }
 
     // Read memory/*.md files
-    const memoryDir = path.join(WORKSPACE_PATH, 'memory');
-    try {
-      const files = await fs.readdir(memoryDir);
-      for (const file of files) {
-        if (!file.endsWith('.md')) continue;
-        const filePath = path.join(memoryDir, file);
-        const stat = await fs.stat(filePath);
-        const content = await fs.readFile(filePath, 'utf-8');
-        
+    const memoryDir = `${WORKSPACE_PATH}/memory`;
+    const memoryFiles = await listDirectory(memoryDir);
+    for (const file of memoryFiles) {
+      const filePath = `${memoryDir}/${file}`;
+      const fileData = await readFile(filePath);
+      if (fileData) {
         memories.push({
           id: `memory-${file.replace('.md', '')}`,
           path: filePath,
           filename: file,
-          content: content.slice(0, 2000),
-          type: inferMemoryType(file, content),
-          created_at: stat.birthtime.toISOString(),
-          modified_at: stat.mtime.toISOString(),
-          tags: extractTags(content),
+          content: fileData.content,
+          type: inferMemoryType(file, fileData.content),
+          created_at: fileData.mtime,
+          modified_at: fileData.mtime,
+          tags: extractTags(fileData.content),
           agent_id: 'agent-neva',
         });
       }
-    } catch (e) {
-      // memory directory doesn't exist
     }
 
     // Read knowledge/ subdirectories
-    const knowledgeDir = path.join(WORKSPACE_PATH, 'knowledge');
-    try {
-      const subdirs = ['learnings', 'ideas', 'research', 'decisions'];
-      for (const subdir of subdirs) {
-        const subPath = path.join(knowledgeDir, subdir);
-        try {
-          const files = await fs.readdir(subPath);
-          for (const file of files) {
-            if (!file.endsWith('.md')) continue;
-            const filePath = path.join(subPath, file);
-            const stat = await fs.stat(filePath);
-            const content = await fs.readFile(filePath, 'utf-8');
-            
-            memories.push({
-              id: `knowledge-${subdir}-${file.replace('.md', '')}`,
-              path: filePath,
-              filename: file,
-              content: content.slice(0, 2000),
-              type: subdir.slice(0, -1) as MemoryEntry['type'], // Remove 's' from plural
-              created_at: stat.birthtime.toISOString(),
-              modified_at: stat.mtime.toISOString(),
-              tags: extractTags(content),
-              agent_id: 'agent-neva',
-            });
-          }
-        } catch (e) {
-          // Subdir doesn't exist
+    const subdirs = ['learnings', 'ideas', 'research', 'decisions'];
+    for (const subdir of subdirs) {
+      const subPath = `${WORKSPACE_PATH}/knowledge/${subdir}`;
+      const files = await listDirectory(subPath);
+      for (const file of files) {
+        const filePath = `${subPath}/${file}`;
+        const fileData = await readFile(filePath);
+        if (fileData) {
+          memories.push({
+            id: `knowledge-${subdir}-${file.replace('.md', '')}`,
+            path: filePath,
+            filename: file,
+            content: fileData.content,
+            type: subdir.slice(0, -1) as MemoryEntry['type'],
+            created_at: fileData.mtime,
+            modified_at: fileData.mtime,
+            tags: extractTags(fileData.content),
+            agent_id: 'agent-neva',
+          });
         }
       }
-    } catch (e) {
-      // knowledge directory doesn't exist
     }
 
     // Sort by modified date, newest first
