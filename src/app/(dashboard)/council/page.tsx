@@ -15,7 +15,10 @@ import {
   XCircle,
   RefreshCw,
   ChevronRight,
-  Lightbulb
+  Lightbulb,
+  ThumbsUp,
+  ThumbsDown,
+  Loader2
 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 
@@ -149,6 +152,42 @@ export default function CouncilPage() {
   const [selectedTranscript, setSelectedTranscript] = useState<CouncilTranscript | null>(null);
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState<'ideas' | 'transcripts'>('ideas');
+  const [approving, setApproving] = useState(false);
+
+  const handleApproval = async (ideaId: string, approved: boolean) => {
+    setApproving(true);
+    try {
+      // Send approval to chat API which notifies NEVA
+      const response = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          message: approved 
+            ? `[APPROVAL] John has APPROVED idea "${selectedIdea?.title}" for building. Proceed with MVP planning.`
+            : `[REJECTION] John has REJECTED idea "${selectedIdea?.title}". Continue research for other opportunities.`,
+          userId: 'mission-control-john'
+        }),
+      });
+      
+      // Update local state
+      setIdeas(prev => prev.map(idea => 
+        idea.id === ideaId 
+          ? { ...idea, councilStatus: approved ? 'approved' : 'rejected' }
+          : idea
+      ));
+      
+      if (selectedIdea?.id === ideaId) {
+        setSelectedIdea(prev => prev ? { ...prev, councilStatus: approved ? 'approved' : 'rejected' } : null);
+      }
+      
+      alert(approved ? '✅ Approved! NEVA has been notified to proceed.' : '❌ Rejected. NEVA will continue research.');
+    } catch (error) {
+      console.error('Failed to send approval:', error);
+      alert('Failed to send approval. Try again.');
+    } finally {
+      setApproving(false);
+    }
+  };
 
   const fetchData = async () => {
     setLoading(true);
@@ -418,6 +457,45 @@ export default function CouncilPage() {
                   <div className="prose prose-sm prose-invert max-w-none text-text-secondary">
                     <ReactMarkdown>{selectedIdea.content}</ReactMarkdown>
                   </div>
+                  
+                  {/* Approval Buttons - Only show for council-evaluated ideas */}
+                  {selectedIdea.councilStatus && selectedIdea.councilStatus !== 'pending' && (
+                    <div className="mt-6 pt-6 border-t border-border">
+                      <div className="text-sm font-semibold text-text-primary mb-3">
+                        John's Decision
+                      </div>
+                      {selectedIdea.councilStatus === 'approved' ? (
+                        <div className="flex items-center gap-2 text-accent-green">
+                          <CheckCircle2 className="w-5 h-5" />
+                          <span className="font-medium">Approved for Build</span>
+                        </div>
+                      ) : selectedIdea.councilStatus === 'rejected' ? (
+                        <div className="flex items-center gap-2 text-accent-red">
+                          <XCircle className="w-5 h-5" />
+                          <span className="font-medium">Rejected</span>
+                        </div>
+                      ) : (
+                        <div className="flex gap-3">
+                          <button
+                            onClick={() => handleApproval(selectedIdea.id, true)}
+                            disabled={approving}
+                            className="flex items-center gap-2 px-4 py-2 bg-accent-green text-white font-medium rounded-lg hover:bg-accent-green/90 transition-colors disabled:opacity-50"
+                          >
+                            {approving ? <Loader2 className="w-4 h-4 animate-spin" /> : <ThumbsUp className="w-4 h-4" />}
+                            Approve for Build
+                          </button>
+                          <button
+                            onClick={() => handleApproval(selectedIdea.id, false)}
+                            disabled={approving}
+                            className="flex items-center gap-2 px-4 py-2 bg-accent-red text-white font-medium rounded-lg hover:bg-accent-red/90 transition-colors disabled:opacity-50"
+                          >
+                            {approving ? <Loader2 className="w-4 h-4 animate-spin" /> : <ThumbsDown className="w-4 h-4" />}
+                            Reject
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             ) : selectedTranscript ? (
@@ -460,6 +538,31 @@ export default function CouncilPage() {
                   
                   <div className="prose prose-sm prose-invert max-w-none text-text-secondary">
                     <ReactMarkdown>{selectedTranscript.content}</ReactMarkdown>
+                  </div>
+                  
+                  {/* Approval Buttons for Transcripts */}
+                  <div className="mt-6 pt-6 border-t border-border">
+                    <div className="text-sm font-semibold text-text-primary mb-3">
+                      John's Decision
+                    </div>
+                    <div className="flex gap-3">
+                      <button
+                        onClick={() => handleApproval(selectedTranscript.id, true)}
+                        disabled={approving}
+                        className="flex items-center gap-2 px-4 py-2 bg-accent-green text-white font-medium rounded-lg hover:bg-accent-green/90 transition-colors disabled:opacity-50"
+                      >
+                        {approving ? <Loader2 className="w-4 h-4 animate-spin" /> : <ThumbsUp className="w-4 h-4" />}
+                        Approve for Build
+                      </button>
+                      <button
+                        onClick={() => handleApproval(selectedTranscript.id, false)}
+                        disabled={approving}
+                        className="flex items-center gap-2 px-4 py-2 bg-accent-red text-white font-medium rounded-lg hover:bg-accent-red/90 transition-colors disabled:opacity-50"
+                      >
+                        {approving ? <Loader2 className="w-4 h-4 animate-spin" /> : <ThumbsDown className="w-4 h-4" />}
+                        Reject
+                      </button>
+                    </div>
                   </div>
                 </CardContent>
               </Card>
