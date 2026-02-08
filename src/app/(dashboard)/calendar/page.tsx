@@ -112,33 +112,69 @@ export default function CalendarPage() {
   const alwaysRunning = parsed.filter((st) => st.parsed.isAlwaysRunning);
   const calendarTasks = parsed.filter((st) => !st.parsed.isAlwaysRunning);
 
-  // Auto-schedule kanban tasks: incomplete tasks get distributed across the week
-  // Priority: critical/high = earlier in week, medium = mid-week, low = end of week
+  // Auto-schedule kanban tasks into actual time slots
+  // Priority determines order, each task gets a time slot
   const incompleteTasks = kanbanTasks.filter((t) => t.status !== 'done');
   const priorityOrder = { critical: 0, high: 1, medium: 2, low: 3 };
   const sortedKanbanTasks = [...incompleteTasks].sort(
     (a, b) => priorityOrder[a.priority] - priorityOrder[b.priority]
   );
   
-  // Assign kanban tasks to days (spread them across the week starting today)
-  const kanbanTasksByDay: Record<number, typeof kanbanTasks> = {};
-  const todayDayIndex = today.getDay() === 0 ? 6 : today.getDay() - 1; // Convert to Mon=0
+  // Working hours: 9 AM to 6 PM (hours 9-17)
+  const WORK_START = 9;
+  const WORK_END = 18;
+  const HOURS_PER_DAY = WORK_END - WORK_START;
   
-  sortedKanbanTasks.forEach((task, idx) => {
-    // If task has a due date, use that day; otherwise auto-schedule
+  // Assign kanban tasks to specific day + hour slots
+  // Each task gets ~1-2 hour slot based on priority
+  const kanbanSchedule: Record<string, typeof kanbanTasks[0][]> = {}; // key: "dayIdx-hour"
+  const todayDayIndex = today.getDay() === 0 ? 6 : today.getDay() - 1;
+  
+  let currentDay = todayDayIndex;
+  let currentHour = Math.max(WORK_START, today.getHours() + 1); // Start from next hour or 9 AM
+  
+  // If past work hours, start tomorrow
+  if (currentHour >= WORK_END) {
+    currentDay = (currentDay + 1) % 7;
+    currentHour = WORK_START;
+  }
+  
+  sortedKanbanTasks.forEach((task) => {
+    // Task duration: critical/high = 2 hours, medium = 1.5 hours, low = 1 hour
+    const duration = task.priority === 'critical' || task.priority === 'high' ? 2 : 
+                     task.priority === 'medium' ? 1.5 : 1;
+    
+    // If task has due date and it's this week, schedule on that day
     if (task.due_date) {
       const dueDate = new Date(task.due_date);
       const dueDayIndex = dueDate.getDay() === 0 ? 6 : dueDate.getDay() - 1;
-      if (!kanbanTasksByDay[dueDayIndex]) kanbanTasksByDay[dueDayIndex] = [];
-      kanbanTasksByDay[dueDayIndex].push(task);
-    } else {
-      // Auto-schedule: spread tasks starting from today
-      const dayOffset = Math.floor(idx / 3); // ~3 tasks per day
-      const targetDay = (todayDayIndex + dayOffset) % 7;
-      if (!kanbanTasksByDay[targetDay]) kanbanTasksByDay[targetDay] = [];
-      kanbanTasksByDay[targetDay].push(task);
+      // Find first available slot on due date
+      for (let h = WORK_START; h < WORK_END; h++) {
+        const key = `${dueDayIndex}-${h}`;
+        if (!kanbanSchedule[key] || kanbanSchedule[key].length === 0) {
+          kanbanSchedule[key] = [task];
+          return;
+        }
+      }
+    }
+    
+    // Auto-schedule into next available slot
+    const key = `${currentDay}-${currentHour}`;
+    if (!kanbanSchedule[key]) kanbanSchedule[key] = [];
+    kanbanSchedule[key].push(task);
+    
+    // Advance to next slot
+    currentHour += Math.ceil(duration);
+    if (currentHour >= WORK_END) {
+      currentDay = (currentDay + 1) % 7;
+      currentHour = WORK_START;
     }
   });
+  
+  // Helper to get scheduled kanban tasks for a day+hour
+  const getKanbanForSlot = (dayIdx: number, hour: number) => {
+    return kanbanSchedule[`${dayIdx}-${hour}`] || [];
+  };
 
   // Determine which calendar tasks fall on which day column
   // Daily tasks appear on every day; weekly tasks appear on their specific day
@@ -150,9 +186,6 @@ export default function CalendarPage() {
       return st.parsed.dayOfWeek === jsDow;
     });
   };
-  
-  // Get kanban tasks for a specific day
-  const kanbanForDay = (dayIndex: number) => kanbanTasksByDay[dayIndex] || [];
 
   // Next 3 upcoming tasks for "Next Up" panel
   const getUpcoming = () => {
@@ -304,53 +337,6 @@ export default function CalendarPage() {
                 })}
               </div>
 
-              {/* Kanban Tasks Row (All-day) */}
-              {incompleteTasks.length > 0 && (
-                <div className="grid grid-cols-[64px_repeat(7,1fr)] border-b border-border bg-bg-secondary/50">
-                  <div className="px-2 py-2 text-[10px] text-text-tertiary text-right pr-3">
-                    Tasks
-                  </div>
-                  {DAY_NAMES.map((_, dayIdx) => {
-                    const dayKanban = kanbanForDay(dayIdx);
-                    const dayDate = addDays(monday, dayIdx);
-                    const isToday = isSameDay(dayDate, today);
-                    const priorityColors: Record<string, string> = {
-                      critical: '#ef4444',
-                      high: '#f59e0b',
-                      medium: '#3b82f6',
-                      low: '#6b7280',
-                    };
-                    
-                    return (
-                      <div
-                        key={dayIdx}
-                        className={`border-l border-border p-1 overflow-hidden ${isToday ? 'bg-accent-blue/5' : ''}`}
-                        style={{ minWidth: 0, minHeight: 40 }}
-                      >
-                        {dayKanban.slice(0, 4).map((task) => (
-                          <div
-                            key={task.id}
-                            className="rounded px-1 py-0.5 mb-0.5 text-[8px] font-medium truncate"
-                            style={{
-                              backgroundColor: `${priorityColors[task.priority]}20`,
-                              borderLeft: `2px solid ${priorityColors[task.priority]}`,
-                            }}
-                            title={`${task.title} (${task.priority})`}
-                          >
-                            {task.title}
-                          </div>
-                        ))}
-                        {dayKanban.length > 4 && (
-                          <div className="text-[8px] text-text-muted pl-1">
-                            +{dayKanban.length - 4} more
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-
               {/* Time rows */}
               {HOURS.map((hour) => {
                 return (
@@ -365,6 +351,13 @@ export default function CalendarPage() {
                       const dayDate = addDays(monday, dayIdx);
                       const isToday = isSameDay(dayDate, today);
                       const dayTasks = tasksForDay(dayIdx).filter((st) => st.parsed.hour === hour);
+                      const slotKanban = getKanbanForSlot(dayIdx, hour);
+                      const priorityColors: Record<string, string> = {
+                        critical: '#ef4444',
+                        high: '#f59e0b', 
+                        medium: '#3b82f6',
+                        low: '#6b7280',
+                      };
 
                       return (
                         <div
@@ -374,6 +367,7 @@ export default function CalendarPage() {
                           }`}
                           style={{ minWidth: 0 }}
                         >
+                          {/* Cron scheduled tasks */}
                           {dayTasks.map((st) => {
                             const isPaused = pausedIds.has(st.id);
                             return (
@@ -393,6 +387,20 @@ export default function CalendarPage() {
                               </div>
                             );
                           })}
+                          {/* Kanban tasks scheduled in this slot */}
+                          {slotKanban.map((task) => (
+                            <div
+                              key={task.id}
+                              className="rounded px-1 py-0.5 mb-0.5 text-[9px] font-medium truncate"
+                              style={{
+                                backgroundColor: `${priorityColors[task.priority]}15`,
+                                borderLeft: `2px solid ${priorityColors[task.priority]}`,
+                              }}
+                              title={`${task.title} (${task.priority})`}
+                            >
+                              📋 {task.title}
+                            </div>
+                          ))}
                         </div>
                       );
                     })}
