@@ -154,7 +154,8 @@ export default function MissionControlPage() {
   };
 
   const mainSession = sessions.find((s) => s.type === 'main');
-  const subagentSessions = sessions.filter((s) => s.type === 'subagent');
+  // Only show subagents that are actually active (not idle/offline completed ones)
+  const subagentSessions = sessions.filter((s) => s.type === 'subagent' && s.status === 'active');
   
   // Find John and NEVA agents by name
   const johnAgent = agents.find((a) => a.name.toLowerCase().includes('john'));
