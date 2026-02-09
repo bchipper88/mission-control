@@ -46,11 +46,19 @@ function parseIdea(doc: { id: string; title: string; content: string; created_at
     : scoreMatch ? parseFloat(scoreMatch[1]) : undefined;
   
   // Determine council status from content
+  // Only mark as council-evaluated if there's actual evidence of scores/results
   let councilStatus: Idea['councilStatus'] = 'pending';
   const contentLower = content.toLowerCase();
-  if (contentLower.includes('council result') || contentLower.includes('council evaluation')) {
-    if (contentLower.includes('approved')) councilStatus = 'approved';
-    else if (contentLower.includes('rejected') || contentLower.includes('fail')) councilStatus = 'rejected';
+  
+  // Check for actual council results (scores table or explicit verdict)
+  const hasCouncilScores = content.match(/\|\s*(?:Demand|Advantage|Economics|Execution|Timing)\s*\|\s*\d+\s*\|/i);
+  const hasCouncilVerdict = content.match(/\*\*(?:Final\s+)?Verdict\*\*:\s*(?:PASS|FAIL|CONDITIONAL|APPROVED|REJECTED)/i);
+  const hasAverageScore = content.match(/\*\*Average(?:\s+Score)?[:\s]*\d+/i);
+  
+  if (hasCouncilScores || hasCouncilVerdict || hasAverageScore) {
+    // Council has actually run - check the outcome
+    if (contentLower.includes('verdict') && contentLower.includes('approved')) councilStatus = 'approved';
+    else if (contentLower.includes('verdict') && (contentLower.includes('rejected') || contentLower.includes('fail'))) councilStatus = 'rejected';
     else councilStatus = 'completed';
   }
   

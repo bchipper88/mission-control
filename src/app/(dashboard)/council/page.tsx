@@ -714,8 +714,8 @@ export default function CouncilPage() {
                     </div>
                   )}
 
-                  {/* Approval Buttons - Only show for council-evaluated ideas */}
-                  {selectedIdea.councilStatus && selectedIdea.councilStatus !== 'pending' && (
+                  {/* John's Decision Section - Only for council-evaluated ideas */}
+                  {(selectedIdea.councilStatus === 'completed' || selectedIdea.councilStatus === 'approved' || selectedIdea.councilStatus === 'rejected') && (
                     <div className="mt-6 pt-6 border-t border-border">
                       <div className="text-sm font-semibold text-text-primary mb-3">
                         John's Decision
