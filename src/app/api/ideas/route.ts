@@ -202,24 +202,20 @@ export async function POST(request: Request) {
       if (GATEWAY_TOKEN) {
         const message = `[COUNCIL REQUEST] John has requested a council evaluation for idea "${ideaId}". Please run the 5-agent council on this idea and report results.`;
         
-        try {
-          await fetch(`${GATEWAY_URL}/v1/responses`, {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${GATEWAY_TOKEN}`,
-              'Content-Type': 'application/json',
-              'x-openclaw-agent-id': 'main',
-            },
-            body: JSON.stringify({
-              model: 'openclaw:main',
-              input: message,
-              user: 'mission-control-john',
-            }),
-          });
-        } catch (e) {
-          console.error('Failed to notify NEVA:', e);
-          return NextResponse.json({ error: 'Failed to reach NEVA' }, { status: 500 });
-        }
+        // Fire and forget - don't wait for agent response
+        fetch(`${GATEWAY_URL}/v1/responses`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${GATEWAY_TOKEN}`,
+            'Content-Type': 'application/json',
+            'x-openclaw-agent-id': 'main',
+          },
+          body: JSON.stringify({
+            model: 'openclaw:main',
+            input: message,
+            user: 'mission-control-john',
+          }),
+        }).catch(e => console.error('Failed to notify NEVA:', e));
       }
       
       return NextResponse.json({ 
@@ -264,29 +260,25 @@ export async function POST(request: Request) {
       .update({ content })
       .eq('id', `idea-${ideaId}`);
     
-    // Notify NEVA via gateway
+    // Notify NEVA via gateway (fire and forget)
     if (GATEWAY_TOKEN) {
       const message = action === 'approve'
         ? `[COUNCIL APPROVAL] John has APPROVED idea "${ideaId}" for building.${comment ? ` Comment: "${comment}"` : ''} Proceed to Build Phase.`
         : `[COUNCIL REJECTION] John has REJECTED idea "${ideaId}".${comment ? ` Comment: "${comment}"` : ''} Continue research.`;
       
-      try {
-        await fetch(`${GATEWAY_URL}/v1/responses`, {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${GATEWAY_TOKEN}`,
-            'Content-Type': 'application/json',
-            'x-openclaw-agent-id': 'main',
-          },
-          body: JSON.stringify({
-            model: 'openclaw:main',
-            input: message,
-            user: 'mission-control-john',
-          }),
-        });
-      } catch (e) {
-        console.error('Failed to notify NEVA:', e);
-      }
+      fetch(`${GATEWAY_URL}/v1/responses`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${GATEWAY_TOKEN}`,
+          'Content-Type': 'application/json',
+          'x-openclaw-agent-id': 'main',
+        },
+        body: JSON.stringify({
+          model: 'openclaw:main',
+          input: message,
+          user: 'mission-control-john',
+        }),
+      }).catch(e => console.error('Failed to notify NEVA:', e));
     }
     
     return NextResponse.json({ 
