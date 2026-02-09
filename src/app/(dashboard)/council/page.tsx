@@ -155,21 +155,26 @@ export default function CouncilPage() {
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState<'ideas' | 'transcripts' | 'compare'>('ideas');
   const [approving, setApproving] = useState(false);
+  const [approvalComment, setApprovalComment] = useState('');
+  const [showCommentDialog, setShowCommentDialog] = useState<{ideaId: string; action: 'approve' | 'reject'} | null>(null);
 
-  const handleApproval = async (ideaId: string, approved: boolean) => {
+  const handleApproval = async (ideaId: string, approved: boolean, comment?: string) => {
     setApproving(true);
     try {
-      // Send approval to chat API which notifies NEVA
-      const response = await fetch('/api/chat', {
+      // Send approval to ideas API
+      const response = await fetch('/api/ideas', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          message: approved 
-            ? `[APPROVAL] John has APPROVED idea "${selectedIdea?.title}" for building. Proceed with MVP planning.`
-            : `[REJECTION] John has REJECTED idea "${selectedIdea?.title}". Continue research for other opportunities.`,
-          userId: 'mission-control-john'
+          ideaId,
+          action: approved ? 'approve' : 'reject',
+          comment: comment || approvalComment,
         }),
       });
+      
+      if (!response.ok) {
+        throw new Error('Failed to save approval');
+      }
       
       // Update local state
       setIdeas(prev => prev.map(idea => 
@@ -182,6 +187,8 @@ export default function CouncilPage() {
         setSelectedIdea(prev => prev ? { ...prev, councilStatus: approved ? 'approved' : 'rejected' } : null);
       }
       
+      setShowCommentDialog(null);
+      setApprovalComment('');
       alert(approved ? '✅ Approved! NEVA has been notified to proceed.' : '❌ Rejected. NEVA will continue research.');
     } catch (error) {
       console.error('Failed to send approval:', error);
@@ -189,6 +196,11 @@ export default function CouncilPage() {
     } finally {
       setApproving(false);
     }
+  };
+  
+  const openApprovalDialog = (ideaId: string, action: 'approve' | 'reject') => {
+    setShowCommentDialog({ ideaId, action });
+    setApprovalComment('');
   };
 
   const fetchData = async () => {
@@ -654,23 +666,63 @@ export default function CouncilPage() {
                           <span className="font-medium">Rejected</span>
                         </div>
                       ) : (
-                        <div className="flex gap-3">
-                          <button
-                            onClick={() => handleApproval(selectedIdea.id, true)}
-                            disabled={approving}
-                            className="flex items-center gap-2 px-4 py-2 bg-accent-green text-white font-medium rounded-lg hover:bg-accent-green/90 transition-colors disabled:opacity-50"
-                          >
-                            {approving ? <Loader2 className="w-4 h-4 animate-spin" /> : <ThumbsUp className="w-4 h-4" />}
-                            Approve for Build
-                          </button>
-                          <button
-                            onClick={() => handleApproval(selectedIdea.id, false)}
-                            disabled={approving}
-                            className="flex items-center gap-2 px-4 py-2 bg-accent-red text-white font-medium rounded-lg hover:bg-accent-red/90 transition-colors disabled:opacity-50"
-                          >
-                            {approving ? <Loader2 className="w-4 h-4 animate-spin" /> : <ThumbsDown className="w-4 h-4" />}
-                            Reject
-                          </button>
+                        <div className="space-y-3">
+                          {showCommentDialog?.ideaId === selectedIdea.id ? (
+                            <div className="space-y-3 p-3 bg-bg-secondary rounded-lg">
+                              <p className="text-sm text-text-secondary">
+                                {showCommentDialog.action === 'approve' 
+                                  ? '✅ Approving for Build' 
+                                  : '❌ Rejecting Idea'}
+                              </p>
+                              <textarea
+                                value={approvalComment}
+                                onChange={(e) => setApprovalComment(e.target.value)}
+                                placeholder="Add a comment (optional)..."
+                                className="w-full px-3 py-2 bg-bg-primary border border-border rounded-lg text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-accent-purple"
+                                rows={3}
+                              />
+                              <div className="flex gap-2">
+                                <button
+                                  onClick={() => handleApproval(selectedIdea.id, showCommentDialog.action === 'approve')}
+                                  disabled={approving}
+                                  className={`flex-1 flex items-center justify-center gap-2 px-4 py-2 text-white font-medium rounded-lg transition-colors disabled:opacity-50 ${
+                                    showCommentDialog.action === 'approve' 
+                                      ? 'bg-accent-green hover:bg-accent-green/90' 
+                                      : 'bg-accent-red hover:bg-accent-red/90'
+                                  }`}
+                                >
+                                  {approving ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+                                  Confirm {showCommentDialog.action === 'approve' ? 'Approval' : 'Rejection'}
+                                </button>
+                                <button
+                                  onClick={() => setShowCommentDialog(null)}
+                                  disabled={approving}
+                                  className="px-4 py-2 bg-bg-tertiary text-text-secondary font-medium rounded-lg hover:bg-bg-hover transition-colors disabled:opacity-50"
+                                >
+                                  Cancel
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="flex gap-3">
+                              <button
+                                onClick={() => openApprovalDialog(selectedIdea.id, 'approve')}
+                                disabled={approving}
+                                className="flex items-center gap-2 px-4 py-2 bg-accent-green text-white font-medium rounded-lg hover:bg-accent-green/90 transition-colors disabled:opacity-50"
+                              >
+                                {approving ? <Loader2 className="w-4 h-4 animate-spin" /> : <ThumbsUp className="w-4 h-4" />}
+                                Approve for Build
+                              </button>
+                              <button
+                                onClick={() => openApprovalDialog(selectedIdea.id, 'reject')}
+                                disabled={approving}
+                                className="flex items-center gap-2 px-4 py-2 bg-accent-red text-white font-medium rounded-lg hover:bg-accent-red/90 transition-colors disabled:opacity-50"
+                              >
+                                {approving ? <Loader2 className="w-4 h-4 animate-spin" /> : <ThumbsDown className="w-4 h-4" />}
+                                Reject
+                              </button>
+                            </div>
+                          )}
                         </div>
                       )}
                     </div>
@@ -724,23 +776,63 @@ export default function CouncilPage() {
                     <div className="text-sm font-semibold text-text-primary mb-3">
                       John's Decision
                     </div>
-                    <div className="flex gap-3">
-                      <button
-                        onClick={() => handleApproval(selectedTranscript.id, true)}
-                        disabled={approving}
-                        className="flex items-center gap-2 px-4 py-2 bg-accent-green text-white font-medium rounded-lg hover:bg-accent-green/90 transition-colors disabled:opacity-50"
-                      >
-                        {approving ? <Loader2 className="w-4 h-4 animate-spin" /> : <ThumbsUp className="w-4 h-4" />}
-                        Approve for Build
-                      </button>
-                      <button
-                        onClick={() => handleApproval(selectedTranscript.id, false)}
-                        disabled={approving}
-                        className="flex items-center gap-2 px-4 py-2 bg-accent-red text-white font-medium rounded-lg hover:bg-accent-red/90 transition-colors disabled:opacity-50"
-                      >
-                        {approving ? <Loader2 className="w-4 h-4 animate-spin" /> : <ThumbsDown className="w-4 h-4" />}
-                        Reject
-                      </button>
+                    <div className="space-y-3">
+                      {showCommentDialog?.ideaId === selectedTranscript.id ? (
+                        <div className="space-y-3 p-3 bg-bg-secondary rounded-lg">
+                          <p className="text-sm text-text-secondary">
+                            {showCommentDialog.action === 'approve' 
+                              ? '✅ Approving for Build' 
+                              : '❌ Rejecting Idea'}
+                          </p>
+                          <textarea
+                            value={approvalComment}
+                            onChange={(e) => setApprovalComment(e.target.value)}
+                            placeholder="Add a comment (optional)..."
+                            className="w-full px-3 py-2 bg-bg-primary border border-border rounded-lg text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-accent-purple"
+                            rows={3}
+                          />
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => handleApproval(selectedTranscript.id, showCommentDialog.action === 'approve')}
+                              disabled={approving}
+                              className={`flex-1 flex items-center justify-center gap-2 px-4 py-2 text-white font-medium rounded-lg transition-colors disabled:opacity-50 ${
+                                showCommentDialog.action === 'approve' 
+                                  ? 'bg-accent-green hover:bg-accent-green/90' 
+                                  : 'bg-accent-red hover:bg-accent-red/90'
+                              }`}
+                            >
+                              {approving ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+                              Confirm {showCommentDialog.action === 'approve' ? 'Approval' : 'Rejection'}
+                            </button>
+                            <button
+                              onClick={() => setShowCommentDialog(null)}
+                              disabled={approving}
+                              className="px-4 py-2 bg-bg-tertiary text-text-secondary font-medium rounded-lg hover:bg-bg-hover transition-colors disabled:opacity-50"
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="flex gap-3">
+                          <button
+                            onClick={() => openApprovalDialog(selectedTranscript.id, 'approve')}
+                            disabled={approving}
+                            className="flex items-center gap-2 px-4 py-2 bg-accent-green text-white font-medium rounded-lg hover:bg-accent-green/90 transition-colors disabled:opacity-50"
+                          >
+                            {approving ? <Loader2 className="w-4 h-4 animate-spin" /> : <ThumbsUp className="w-4 h-4" />}
+                            Approve for Build
+                          </button>
+                          <button
+                            onClick={() => openApprovalDialog(selectedTranscript.id, 'reject')}
+                            disabled={approving}
+                            className="flex items-center gap-2 px-4 py-2 bg-accent-red text-white font-medium rounded-lg hover:bg-accent-red/90 transition-colors disabled:opacity-50"
+                          >
+                            {approving ? <Loader2 className="w-4 h-4 animate-spin" /> : <ThumbsDown className="w-4 h-4" />}
+                            Reject
+                          </button>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </CardContent>
