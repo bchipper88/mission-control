@@ -187,7 +187,7 @@ export async function GET() {
   }
 }
 
-// Handle approval/rejection
+// Handle approval/rejection/submit_to_council
 export async function POST(request: Request) {
   try {
     const body = await request.json();
@@ -195,6 +195,37 @@ export async function POST(request: Request) {
     
     if (!ideaId || !action) {
       return NextResponse.json({ error: 'Missing ideaId or action' }, { status: 400 });
+    }
+    
+    // Handle submit to council
+    if (action === 'submit_to_council') {
+      if (GATEWAY_TOKEN) {
+        const message = `[COUNCIL REQUEST] John has requested a council evaluation for idea "${ideaId}". Please run the 5-agent council on this idea and report results.`;
+        
+        try {
+          await fetch(`${GATEWAY_URL}/v1/responses`, {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${GATEWAY_TOKEN}`,
+              'Content-Type': 'application/json',
+              'x-openclaw-agent-id': 'main',
+            },
+            body: JSON.stringify({
+              model: 'openclaw:main',
+              input: message,
+              user: 'mission-control-john',
+            }),
+          });
+        } catch (e) {
+          console.error('Failed to notify NEVA:', e);
+          return NextResponse.json({ error: 'Failed to reach NEVA' }, { status: 500 });
+        }
+      }
+      
+      return NextResponse.json({ 
+        success: true, 
+        message: 'Submitted to council' 
+      });
     }
     
     // Update Supabase document with John's decision

@@ -157,6 +157,7 @@ export default function CouncilPage() {
   const [approving, setApproving] = useState(false);
   const [approvalComment, setApprovalComment] = useState('');
   const [showCommentDialog, setShowCommentDialog] = useState<{ideaId: string; action: 'approve' | 'reject'} | null>(null);
+  const [submittingToCouncil, setSubmittingToCouncil] = useState(false);
 
   const handleApproval = async (ideaId: string, approved: boolean, comment?: string) => {
     setApproving(true);
@@ -201,6 +202,31 @@ export default function CouncilPage() {
   const openApprovalDialog = (ideaId: string, action: 'approve' | 'reject') => {
     setShowCommentDialog({ ideaId, action });
     setApprovalComment('');
+  };
+
+  const submitToCouncil = async (ideaId: string, ideaTitle: string) => {
+    setSubmittingToCouncil(true);
+    try {
+      const response = await fetch('/api/ideas', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ideaId,
+          action: 'submit_to_council',
+        }),
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to submit to council');
+      }
+      
+      alert(`📋 Submitted "${ideaTitle}" to Council! NEVA will run the 5-agent evaluation.`);
+    } catch (error) {
+      console.error('Failed to submit to council:', error);
+      alert('Failed to submit. Try again.');
+    } finally {
+      setSubmittingToCouncil(false);
+    }
   };
 
   const fetchData = async () => {
@@ -649,6 +675,26 @@ export default function CouncilPage() {
                     <ReactMarkdown>{selectedIdea.content}</ReactMarkdown>
                   </div>
                   
+                  {/* Submit to Council Button - Show for pending ideas */}
+                  {selectedIdea.councilStatus === 'pending' && (
+                    <div className="mt-6 pt-6 border-t border-border">
+                      <div className="text-sm font-semibold text-text-primary mb-3">
+                        Council Evaluation
+                      </div>
+                      <p className="text-sm text-text-secondary mb-3">
+                        This idea hasn't been evaluated by the 5-agent council yet.
+                      </p>
+                      <button
+                        onClick={() => submitToCouncil(selectedIdea.id, selectedIdea.title)}
+                        disabled={submittingToCouncil}
+                        className="flex items-center gap-2 px-4 py-2 bg-accent-purple text-white font-medium rounded-lg hover:bg-accent-purple/90 transition-colors disabled:opacity-50"
+                      >
+                        {submittingToCouncil ? <Loader2 className="w-4 h-4 animate-spin" /> : <Users className="w-4 h-4" />}
+                        Submit to Council
+                      </button>
+                    </div>
+                  )}
+
                   {/* Approval Buttons - Only show for council-evaluated ideas */}
                   {selectedIdea.councilStatus && selectedIdea.councilStatus !== 'pending' && (
                     <div className="mt-6 pt-6 border-t border-border">
