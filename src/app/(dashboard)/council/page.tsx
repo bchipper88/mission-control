@@ -694,7 +694,7 @@ export default function CouncilPage() {
                     <ReactMarkdown>{selectedIdea.content}</ReactMarkdown>
                   </div>
                   
-                  {/* Submit to Council Button - Show for pending ideas */}
+                  {/* Submit to Council OR Reject - Show for pending ideas */}
                   {selectedIdea.councilStatus === 'pending' && (
                     <div className="mt-6 pt-6 border-t border-border">
                       <div className="text-sm font-semibold text-text-primary mb-3">
@@ -703,14 +703,54 @@ export default function CouncilPage() {
                       <p className="text-sm text-text-secondary mb-3">
                         This idea hasn't been evaluated by the 5-agent council yet.
                       </p>
-                      <button
-                        onClick={() => submitToCouncil(selectedIdea.id, selectedIdea.title)}
-                        disabled={submittingToCouncil}
-                        className="flex items-center gap-2 px-4 py-2 bg-accent-purple text-white font-medium rounded-lg hover:bg-accent-purple/90 transition-colors disabled:opacity-50"
-                      >
-                        {submittingToCouncil ? <Loader2 className="w-4 h-4 animate-spin" /> : <Users className="w-4 h-4" />}
-                        Submit to Council
-                      </button>
+                      {showCommentDialog?.ideaId === selectedIdea.id && showCommentDialog.action === 'reject' ? (
+                        <div className="space-y-3 p-3 bg-bg-secondary rounded-lg">
+                          <p className="text-sm text-text-secondary">❌ Rejecting without council review</p>
+                          <textarea
+                            value={approvalComment}
+                            onChange={(e) => setApprovalComment(e.target.value)}
+                            placeholder="Why reject? (helps NEVA learn)..."
+                            className="w-full px-3 py-2 bg-bg-primary border border-border rounded-lg text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-accent-purple"
+                            rows={2}
+                          />
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => handleApproval(selectedIdea.id, false, approvalComment)}
+                              disabled={approving}
+                              className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-accent-red text-white font-medium rounded-lg hover:bg-accent-red/90 transition-colors disabled:opacity-50"
+                            >
+                              {approving ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+                              Confirm Rejection
+                            </button>
+                            <button
+                              onClick={() => setShowCommentDialog(null)}
+                              disabled={approving}
+                              className="px-4 py-2 bg-bg-tertiary text-text-secondary font-medium rounded-lg hover:bg-bg-hover transition-colors disabled:opacity-50"
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="flex gap-3">
+                          <button
+                            onClick={() => submitToCouncil(selectedIdea.id, selectedIdea.title)}
+                            disabled={submittingToCouncil}
+                            className="flex items-center gap-2 px-4 py-2 bg-accent-purple text-white font-medium rounded-lg hover:bg-accent-purple/90 transition-colors disabled:opacity-50"
+                          >
+                            {submittingToCouncil ? <Loader2 className="w-4 h-4 animate-spin" /> : <Users className="w-4 h-4" />}
+                            Submit to Council
+                          </button>
+                          <button
+                            onClick={() => openApprovalDialog(selectedIdea.id, 'reject')}
+                            disabled={approving}
+                            className="flex items-center gap-2 px-4 py-2 bg-accent-red text-white font-medium rounded-lg hover:bg-accent-red/90 transition-colors disabled:opacity-50"
+                          >
+                            <ThumbsDown className="w-4 h-4" />
+                            Reject
+                          </button>
+                        </div>
+                      )}
                     </div>
                   )}
 
