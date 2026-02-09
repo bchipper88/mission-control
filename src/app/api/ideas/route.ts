@@ -56,18 +56,22 @@ function parseIdea(doc: { id: string; title: string; content: string; created_at
   const hasAverageScore = content.match(/\*\*Average(?:\s+Score)?[:\s]*\d+/i);
   
   if (hasCouncilScores || hasCouncilVerdict || hasAverageScore) {
-    // Council has actually run - check the outcome
-    if (contentLower.includes('verdict') && contentLower.includes('approved')) councilStatus = 'approved';
-    else if (contentLower.includes('verdict') && (contentLower.includes('rejected') || contentLower.includes('fail'))) councilStatus = 'rejected';
-    else councilStatus = 'completed';
+    // Council has actually run - default to completed (awaiting John's decision)
+    councilStatus = 'completed';
   }
   
-  // Check John's verdict section
-  const verdictMatch = content.match(/John's Verdict[\s\S]*?\*\*Decision\*\*:\s*(\w+)/i);
-  if (verdictMatch) {
-    const verdict = verdictMatch[1].toLowerCase();
-    if (verdict === 'approved') councilStatus = 'approved';
-    else if (verdict === 'rejected') councilStatus = 'rejected';
+  // Check for EXPLICIT John's approval/rejection
+  // Must match: **Decision:** APPROVED or [x] APPROVED (checked checkbox)
+  const johnDecisionMatch = content.match(/\*\*Decision\*\*:\s*(APPROVED|REJECTED)/i);
+  const checkedApprovalMatch = content.match(/\[x\]\s*APPROVED/i);
+  const checkedRejectionMatch = content.match(/\[x\]\s*REJECTED/i);
+  
+  if (johnDecisionMatch) {
+    councilStatus = johnDecisionMatch[1].toLowerCase() === 'approved' ? 'approved' : 'rejected';
+  } else if (checkedApprovalMatch) {
+    councilStatus = 'approved';
+  } else if (checkedRejectionMatch) {
+    councilStatus = 'rejected';
   }
   
   const filename = doc.id.replace('idea-', '') + '.md';
