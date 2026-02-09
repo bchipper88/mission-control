@@ -154,6 +154,7 @@ export default function CouncilPage() {
   const [selectedTranscript, setSelectedTranscript] = useState<CouncilTranscript | null>(null);
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState<'ideas' | 'transcripts' | 'compare'>('ideas');
+  const [showRejected, setShowRejected] = useState(false);
   const [approving, setApproving] = useState(false);
   const [approvalComment, setApprovalComment] = useState('');
   const [showCommentDialog, setShowCommentDialog] = useState<{ideaId: string; action: 'approve' | 'reject'} | null>(null);
@@ -325,6 +326,19 @@ export default function CouncilPage() {
             <RefreshCw className={`w-4 h-4 text-text-muted ${loading ? 'animate-spin' : ''}`} />
           </button>
         </div>
+      </div>
+
+      {/* Filter Toggle */}
+      <div className="flex items-center gap-2 mb-4">
+        <label className="flex items-center gap-2 text-sm text-text-secondary cursor-pointer">
+          <input
+            type="checkbox"
+            checked={showRejected}
+            onChange={(e) => setShowRejected(e.target.checked)}
+            className="rounded border-border bg-bg-secondary"
+          />
+          Show rejected ideas
+        </label>
       </div>
 
       {/* Council Agents Overview */}
@@ -565,12 +579,16 @@ export default function CouncilPage() {
             </h2>
             
             {view === 'ideas' ? (
-              ideas.length === 0 ? (
+              (() => {
+                const filteredIdeas = showRejected 
+                  ? ideas 
+                  : ideas.filter(i => i.councilStatus !== 'rejected');
+                return filteredIdeas.length === 0 ? (
                 <div className="text-center py-8 text-text-muted text-sm">
-                  No ideas found in knowledge/ideas/
+                  {ideas.length === 0 ? 'No ideas found' : 'No active ideas (toggle "Show rejected" to see all)'}
                 </div>
               ) : (
-                ideas.map((idea) => (
+                filteredIdeas.map((idea) => (
                   <Card 
                     key={idea.id}
                     className={`cursor-pointer transition-all ${
@@ -594,7 +612,8 @@ export default function CouncilPage() {
                     </CardContent>
                   </Card>
                 ))
-              )
+              );
+              })()
             ) : (
               transcripts.length === 0 ? (
                 <div className="text-center py-8 text-text-muted text-sm">
