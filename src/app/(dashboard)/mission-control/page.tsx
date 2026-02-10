@@ -22,6 +22,14 @@ import {
   User,
   DollarSign,
   TrendingUp,
+  ChevronDown,
+  ChevronRight,
+  FileCode,
+  Play,
+  Eye,
+  Edit3,
+  Minus,
+  Plus,
 } from 'lucide-react';
 
 // ---------------------------------------------------------------------------
@@ -64,6 +72,217 @@ interface WorkspaceTask {
   source_file: string;
   category: string;
   assigned_to: 'neva' | 'john' | null;
+}
+
+// ---------------------------------------------------------------------------
+// Tool Arguments Display Component
+// ---------------------------------------------------------------------------
+
+interface CollapsibleSectionProps {
+  title: string;
+  defaultOpen?: boolean;
+  children: React.ReactNode;
+  icon?: React.ReactNode;
+}
+
+function CollapsibleSection({ title, defaultOpen = true, children, icon }: CollapsibleSectionProps) {
+  const [isOpen, setIsOpen] = useState(defaultOpen);
+  return (
+    <div className="border border-border/50 rounded-lg overflow-hidden">
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className="w-full flex items-center gap-2 px-3 py-2 bg-bg-secondary hover:bg-bg-hover text-left transition-colors"
+      >
+        {isOpen ? (
+          <ChevronDown className="w-3.5 h-3.5 text-text-muted" />
+        ) : (
+          <ChevronRight className="w-3.5 h-3.5 text-text-muted" />
+        )}
+        {icon}
+        <span className="text-xs font-medium text-text-secondary">{title}</span>
+      </button>
+      {isOpen && <div className="p-3 bg-bg-primary">{children}</div>}
+    </div>
+  );
+}
+
+interface ToolArgsDisplayProps {
+  toolName: string;
+  toolArgs: Record<string, unknown>;
+}
+
+function ToolArgsDisplay({ toolName, toolArgs }: ToolArgsDisplayProps) {
+  const normalizedTool = toolName.toLowerCase();
+
+  // Edit tool - show path with old/new string diff
+  if (normalizedTool === 'edit') {
+    const path = (toolArgs.file_path || toolArgs.path || '') as string;
+    const oldString = (toolArgs.old_string || toolArgs.oldText || '') as string;
+    const newString = (toolArgs.new_string || toolArgs.newText || '') as string;
+
+    return (
+      <div className="space-y-3">
+        {/* File path */}
+        <div className="flex items-center gap-2 px-3 py-2 bg-bg-secondary rounded-lg border border-border">
+          <FileCode className="w-4 h-4 text-accent-blue" />
+          <code className="text-xs font-mono text-accent-cyan">{path || 'Unknown path'}</code>
+        </div>
+
+        {/* Old string (to be replaced) */}
+        {oldString && (
+          <CollapsibleSection
+            title="Old Text (replacing)"
+            icon={<Minus className="w-3.5 h-3.5 text-accent-red" />}
+            defaultOpen={oldString.length < 500}
+          >
+            <pre className="text-xs font-mono whitespace-pre-wrap break-words text-accent-red/80 bg-accent-red/5 rounded p-3 border border-accent-red/20 max-h-64 overflow-y-auto">
+              {oldString}
+            </pre>
+          </CollapsibleSection>
+        )}
+
+        {/* New string */}
+        {newString && (
+          <CollapsibleSection
+            title="New Text"
+            icon={<Plus className="w-3.5 h-3.5 text-accent-green" />}
+            defaultOpen={newString.length < 500}
+          >
+            <pre className="text-xs font-mono whitespace-pre-wrap break-words text-accent-green/80 bg-accent-green/5 rounded p-3 border border-accent-green/20 max-h-64 overflow-y-auto">
+              {newString}
+            </pre>
+          </CollapsibleSection>
+        )}
+      </div>
+    );
+  }
+
+  // Exec tool - show command prominently
+  if (normalizedTool === 'exec') {
+    const command = (toolArgs.command || '') as string;
+    const workdir = (toolArgs.workdir || toolArgs.cwd) as string | undefined;
+    const timeout = toolArgs.timeout as number | undefined;
+    const background = toolArgs.background as boolean | undefined;
+
+    return (
+      <div className="space-y-3">
+        {/* Command */}
+        <div className="bg-bg-secondary rounded-lg border border-border overflow-hidden">
+          <div className="flex items-center gap-2 px-3 py-2 border-b border-border/50 bg-bg-hover">
+            <Play className="w-3.5 h-3.5 text-accent-green" />
+            <span className="text-[10px] text-text-muted uppercase tracking-wider">Command</span>
+          </div>
+          <pre className="text-xs font-mono whitespace-pre-wrap break-words text-accent-green p-3 max-h-64 overflow-y-auto">
+            {command}
+          </pre>
+        </div>
+
+        {/* Meta info */}
+        {(workdir || timeout || background) && (
+          <div className="flex flex-wrap gap-2">
+            {workdir && (
+              <div className="text-[10px] bg-bg-secondary px-2 py-1 rounded border border-border">
+                <span className="text-text-muted">cwd:</span>{' '}
+                <span className="font-mono text-text-secondary">{workdir}</span>
+              </div>
+            )}
+            {timeout && (
+              <div className="text-[10px] bg-bg-secondary px-2 py-1 rounded border border-border">
+                <span className="text-text-muted">timeout:</span>{' '}
+                <span className="font-mono text-text-secondary">{timeout}s</span>
+              </div>
+            )}
+            {background && (
+              <div className="text-[10px] bg-accent-yellow/10 text-accent-yellow px-2 py-1 rounded border border-accent-yellow/30">
+                background
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // Read tool - show file path
+  if (normalizedTool === 'read') {
+    const path = (toolArgs.file_path || toolArgs.path || '') as string;
+    const offset = toolArgs.offset as number | undefined;
+    const limit = toolArgs.limit as number | undefined;
+
+    return (
+      <div className="space-y-3">
+        <div className="flex items-center gap-2 px-3 py-2 bg-bg-secondary rounded-lg border border-border">
+          <Eye className="w-4 h-4 text-accent-cyan" />
+          <code className="text-xs font-mono text-accent-cyan">{path || 'Unknown path'}</code>
+        </div>
+        {(offset || limit) && (
+          <div className="flex gap-2">
+            {offset && (
+              <div className="text-[10px] bg-bg-secondary px-2 py-1 rounded border border-border">
+                <span className="text-text-muted">offset:</span>{' '}
+                <span className="font-mono text-text-secondary">{offset}</span>
+              </div>
+            )}
+            {limit && (
+              <div className="text-[10px] bg-bg-secondary px-2 py-1 rounded border border-border">
+                <span className="text-text-muted">limit:</span>{' '}
+                <span className="font-mono text-text-secondary">{limit}</span>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // Write tool - show path and content
+  if (normalizedTool === 'write') {
+    const path = (toolArgs.file_path || toolArgs.path || '') as string;
+    const content = (toolArgs.content || '') as string;
+
+    return (
+      <div className="space-y-3">
+        <div className="flex items-center gap-2 px-3 py-2 bg-bg-secondary rounded-lg border border-border">
+          <Edit3 className="w-4 h-4 text-accent-purple" />
+          <code className="text-xs font-mono text-accent-cyan">{path || 'Unknown path'}</code>
+        </div>
+        {content && (
+          <CollapsibleSection
+            title={`Content (${content.length} chars)`}
+            icon={<FileText className="w-3.5 h-3.5 text-accent-purple" />}
+            defaultOpen={content.length < 500}
+          >
+            <pre className="text-xs font-mono whitespace-pre-wrap break-words text-text-secondary bg-bg-secondary rounded p-3 border border-border/50 max-h-64 overflow-y-auto">
+              {content}
+            </pre>
+          </CollapsibleSection>
+        )}
+      </div>
+    );
+  }
+
+  // Default - show all args in a structured way
+  return (
+    <div className="space-y-3">
+      {Object.entries(toolArgs).map(([key, value]) => {
+        const strValue = typeof value === 'string' ? value : JSON.stringify(value, null, 2);
+        const isLong = strValue.length > 200;
+
+        return (
+          <CollapsibleSection
+            key={key}
+            title={key}
+            icon={<span className="text-[10px] text-accent-cyan font-mono">{typeof value}</span>}
+            defaultOpen={!isLong}
+          >
+            <pre className="text-xs font-mono whitespace-pre-wrap break-words text-text-secondary bg-bg-secondary rounded p-2 border border-border/50 max-h-48 overflow-y-auto">
+              {strValue}
+            </pre>
+          </CollapsibleSection>
+        );
+      })}
+    </div>
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -613,7 +832,8 @@ export default function MissionControlPage() {
                 <div className="space-y-3">
                   <div>
                     <div className="text-[10px] text-text-muted uppercase tracking-wider mb-1">Tool</div>
-                    <div className="bg-bg-secondary rounded-lg px-3 py-2 border border-border">
+                    <div className="bg-bg-secondary rounded-lg px-3 py-2 border border-border flex items-center gap-2">
+                      <Wrench className="w-4 h-4 text-accent-purple" />
                       <span className="text-sm font-mono font-semibold text-accent-purple">
                         {selectedActivity.toolName}
                       </span>
@@ -621,17 +841,11 @@ export default function MissionControlPage() {
                   </div>
                   {selectedActivity.toolArgs && Object.keys(selectedActivity.toolArgs).length > 0 && (
                     <div>
-                      <div className="text-[10px] text-text-muted uppercase tracking-wider mb-1">Arguments</div>
-                      <div className="bg-bg-secondary rounded-lg p-4 border border-border space-y-3">
-                        {Object.entries(selectedActivity.toolArgs).map(([key, value]) => (
-                          <div key={key}>
-                            <div className="text-[10px] text-accent-cyan font-mono mb-1">{key}</div>
-                            <pre className="text-xs font-mono text-text-secondary whitespace-pre-wrap break-words bg-bg-primary rounded p-2 border border-border/50 max-h-48 overflow-y-auto">
-                              {typeof value === 'string' ? value : JSON.stringify(value, null, 2)}
-                            </pre>
-                          </div>
-                        ))}
-                      </div>
+                      <div className="text-[10px] text-text-muted uppercase tracking-wider mb-2">Arguments</div>
+                      <ToolArgsDisplay 
+                        toolName={selectedActivity.toolName} 
+                        toolArgs={selectedActivity.toolArgs} 
+                      />
                     </div>
                   )}
                 </div>
