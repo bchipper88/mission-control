@@ -1,10 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useStore } from '@/store';
 import { Card, CardContent } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { AgentAvatar } from '@/components/ui/AgentAvatar';
+import { Task } from '@/types';
 import {
   Clock,
   Calendar as CalendarIcon,
@@ -14,6 +15,9 @@ import {
   Repeat,
   Play,
   Pause,
+  ListTodo,
+  Sparkles,
+  AlertCircle,
 } from 'lucide-react';
 
 // ---------------------------------------------------------------------------
@@ -83,20 +87,143 @@ function formatWeekLabel(monday: Date): string {
 }
 
 // ---------------------------------------------------------------------------
+// Auto-Scheduling Logic
+// ---------------------------------------------------------------------------
+
+interface ScheduledKanbanTask {
+  task: Task;
+  scheduledDate: Date;
+  scheduledHour: number;
+  isAutoScheduled: boolean;
+}
+
+/**
+ * Auto-schedules tasks from inbox/planning based on priority:
+ * - Critical/High: Morning slots (8-11 AM)
+ * - Medium: Afternoon slots (13-16)
+ * - Low: Evening slots (17-19)
+ * 
+ * Tasks with due_date are scheduled on that day.
+ * Tasks without due_date are scheduled starting tomorrow.
+ */
+function autoScheduleTasks(tasks: Task[], monday: Date): ScheduledKanbanTask[] {
+  const schedulableTasks = tasks.filter(
+    (t) => t.status === 'inbox' || t.status === 'planning' || t.status === 'assigned' || t.status === 'in_progress'
+  );
+
+  // Priority to time slot mapping
+  const prioritySlots: Record<string, number[]> = {
+    critical: [8, 9, 10],
+    high: [9, 10, 11],
+    medium: [13, 14, 15, 16],
+    low: [17, 18, 19],
+  };
+
+  // Track used slots per day
+  const usedSlots: Map<string, Set<number>> = new Map();
+
+  const getNextAvailableSlot = (date: Date, priority: string): number => {
+    const dateKey = date.toISOString().split('T')[0];
+    if (!usedSlots.has(dateKey)) {
+      usedSlots.set(dateKey, new Set());
+    }
+    const daySlots = usedSlots.get(dateKey)!;
+    const preferredSlots = prioritySlots[priority] || prioritySlots.medium;
+    
+    for (const slot of preferredSlots) {
+      if (!daySlots.has(slot)) {
+        daySlots.add(slot);
+        return slot;
+      }
+    }
+    // Fallback: find any available slot
+    for (let h = 8; h < 20; h++) {
+      if (!daySlots.has(h)) {
+        daySlots.add(h);
+        return h;
+      }
+    }
+    return 9; // Default fallback
+  };
+
+  const result: ScheduledKanbanTask[] = [];
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  
+  let nextFreeDay = addDays(today, 1); // Start scheduling from tomorrow
+
+  for (const task of schedulableTasks) {
+    let scheduledDate: Date;
+    let isAutoScheduled = true;
+
+    if (task.due_date) {
+      // Use the due date if set
+      scheduledDate = new Date(task.due_date);
+      isAutoScheduled = false;
+    } else {
+      // Auto-assign to next available day
+      scheduledDate = new Date(nextFreeDay);
+    }
+
+    const hour = getNextAvailableSlot(scheduledDate, task.priority);
+
+    result.push({
+      task,
+      scheduledDate,
+      scheduledHour: hour,
+      isAutoScheduled,
+    });
+
+    // Move to next day if current day is full (more than 6 tasks)
+    const dateKey = scheduledDate.toISOString().split('T')[0];
+    if ((usedSlots.get(dateKey)?.size || 0) >= 6) {
+      nextFreeDay = addDays(nextFreeDay, 1);
+    }
+  }
+
+  return result;
+}
+
+// ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
 
 export default function CalendarPage() {
-  const { scheduledTasks, agents } = useStore();
+  const { scheduledTasks, agents, tasks } = useStore();
 
   const today = new Date();
   const [weekOffset, setWeekOffset] = useState(0);
   const [pausedIds, setPausedIds] = useState<Set<string>>(new Set());
+  const [showAutoScheduled, setShowAutoScheduled] = useState(true);
 
   const monday = addDays(getMonday(today), weekOffset * 7);
 
   const getAgent = (agentId?: string | null) =>
     agentId ? agents.find((a) => a.id === agentId) : undefined;
+
+  // Auto-schedule kanban tasks
+  const autoScheduledTasks = useMemo(
+    () => autoScheduleTasks(tasks, monday),
+    [tasks, monday]
+  );
+
+  // Get auto-scheduled tasks for a specific day and hour
+  const getKanbanTasksForSlot = (dayDate: Date, hour: number) => {
+    if (!showAutoScheduled) return [];
+    return autoScheduledTasks.filter((st) => {
+      const taskDate = new Date(st.scheduledDate);
+      return isSameDay(taskDate, dayDate) && st.scheduledHour === hour;
+    });
+  };
+
+  // Count tasks by priority for stats
+  const taskStats = useMemo(() => {
+    const stats = { critical: 0, high: 0, medium: 0, low: 0, total: autoScheduledTasks.length };
+    for (const st of autoScheduledTasks) {
+      stats[st.task.priority as keyof typeof stats]++;
+    }
+    return stats;
+  }, [autoScheduledTasks]);
 
   const togglePause = (id: string) => {
     setPausedIds((prev) => {
@@ -201,6 +328,24 @@ export default function CalendarPage() {
             </button>
           </div>
 
+          {/* Auto-schedule toggle */}
+          <button
+            onClick={() => setShowAutoScheduled(!showAutoScheduled)}
+            className={`flex items-center gap-2 px-3 py-1.5 text-sm font-medium rounded-lg transition-colors ${
+              showAutoScheduled
+                ? 'bg-accent-purple/20 text-accent-purple border border-accent-purple/30'
+                : 'bg-bg-secondary text-text-secondary border border-border'
+            }`}
+          >
+            <Sparkles className="w-4 h-4" />
+            Auto-Schedule
+            {taskStats.total > 0 && (
+              <Badge variant={showAutoScheduled ? 'purple' : 'default'} size="sm">
+                {taskStats.total}
+              </Badge>
+            )}
+          </button>
+
           {/* Add Schedule */}
           <button className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-white bg-accent-blue rounded-lg hover:bg-accent-blue/80 transition-colors">
             <Plus className="w-4 h-4" />
@@ -287,6 +432,7 @@ export default function CalendarPage() {
                       const dayDate = addDays(monday, dayIdx);
                       const isToday = isSameDay(dayDate, today);
                       const dayTasks = tasksForDay(dayIdx).filter((st) => st.parsed.hour === hour);
+                      const kanbanTasks = getKanbanTasksForSlot(dayDate, hour);
 
                       return (
                         <div
@@ -296,6 +442,7 @@ export default function CalendarPage() {
                           }`}
                           style={{ minWidth: 0 }}
                         >
+                          {/* Cron scheduled tasks */}
                           {dayTasks.map((st) => {
                             const isPaused = pausedIds.has(st.id);
                             return (
@@ -312,6 +459,33 @@ export default function CalendarPage() {
                                 title={st.name}
                               >
                                 {st.name}
+                              </div>
+                            );
+                          })}
+                          {/* Auto-scheduled kanban tasks */}
+                          {kanbanTasks.map((st) => {
+                            const priorityColors: Record<string, string> = {
+                              critical: '#ef4444',
+                              high: '#f59e0b',
+                              medium: '#3b82f6',
+                              low: '#6b7280',
+                            };
+                            const color = priorityColors[st.task.priority] || '#3b82f6';
+                            return (
+                              <div
+                                key={st.task.id}
+                                className={`rounded px-1 py-0.5 mb-0.5 text-[9px] font-medium truncate cursor-pointer hover:opacity-80 transition-opacity ${
+                                  st.isAutoScheduled ? 'border-dashed' : ''
+                                }`}
+                                style={{
+                                  backgroundColor: `${color}15`,
+                                  borderLeft: `2px ${st.isAutoScheduled ? 'dashed' : 'solid'} ${color}`,
+                                  color: color,
+                                }}
+                                title={`${st.task.title}${st.isAutoScheduled ? ' (auto-scheduled)' : ''}`}
+                              >
+                                {st.isAutoScheduled && <Sparkles className="inline w-2 h-2 mr-0.5" />}
+                                {st.task.title}
                               </div>
                             );
                           })}
@@ -381,6 +555,54 @@ export default function CalendarPage() {
               )}
             </div>
           </div>
+
+          {/* Auto-scheduled tasks from Kanban */}
+          {showAutoScheduled && autoScheduledTasks.length > 0 && (
+            <div className="px-4 pb-4 border-b border-border mb-4">
+              <div className="flex items-center gap-2 mb-3">
+                <ListTodo className="w-4 h-4 text-accent-purple" />
+                <h3 className="text-xs font-semibold text-text-secondary uppercase tracking-wider">
+                  Kanban Tasks
+                </h3>
+                <Badge variant="purple" size="sm">{autoScheduledTasks.length}</Badge>
+              </div>
+              <div className="space-y-1.5 max-h-48 overflow-y-auto">
+                {autoScheduledTasks.slice(0, 10).map((st) => {
+                  const priorityColors: Record<string, 'red' | 'yellow' | 'blue' | 'default'> = {
+                    critical: 'red',
+                    high: 'yellow',
+                    medium: 'blue',
+                    low: 'default',
+                  };
+                  return (
+                    <div
+                      key={st.task.id}
+                      className="flex items-center gap-2 px-2 py-1.5 rounded-lg bg-bg-secondary hover:bg-bg-hover transition-colors"
+                    >
+                      {st.isAutoScheduled ? (
+                        <Sparkles className="w-3 h-3 text-accent-purple shrink-0" />
+                      ) : (
+                        <CalendarIcon className="w-3 h-3 text-text-muted shrink-0" />
+                      )}
+                      <span className="flex-1 text-xs text-text-primary truncate">{st.task.title}</span>
+                      <Badge variant={priorityColors[st.task.priority]} size="sm">
+                        {st.task.priority}
+                      </Badge>
+                    </div>
+                  );
+                })}
+                {autoScheduledTasks.length > 10 && (
+                  <p className="text-[10px] text-text-muted text-center py-1">
+                    +{autoScheduledTasks.length - 10} more
+                  </p>
+                )}
+              </div>
+              <p className="text-[10px] text-text-tertiary mt-2">
+                <Sparkles className="inline w-3 h-3 mr-1" />
+                Dashed = auto-scheduled based on priority
+              </p>
+            </div>
+          )}
 
           {/* All scheduled tasks list */}
           <div className="px-4 pb-4">
